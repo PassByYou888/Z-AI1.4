@@ -1,0 +1,110 @@
+object ImageScriptForm: TImageScriptForm
+  Left = 0
+  Top = 0
+  Caption = 'Image Script demo, create by.qq600585'
+  ClientHeight = 474
+  ClientWidth = 826
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  OnClose = FormClose
+  OnMouseDown = FormMouseDown
+  OnMouseMove = FormMouseMove
+  OnMouseUp = FormMouseUp
+  OnMouseWheel = FormMouseWheel
+  OnPaint = FormPaint
+  DesignerMasterStyle = 0
+  object Timer1: TTimer
+    Interval = 10
+    OnTimer = Timer1Timer
+    Left = 424
+    Top = 96
+  end
+  object Layout2: TLayout
+    Anchors = [akTop, akRight]
+    Position.X = 520.000000000000000000
+    Position.Y = 56.000000000000000000
+    Size.Width = 297.000000000000000000
+    Size.Height = 41.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 0
+    object Label2: TLabel
+      Align = Left
+      StyledSettings = [Family, Style]
+      Size.Width = 65.000000000000000000
+      Size.Height = 41.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.FontColor = claWhite
+      Text = 'process:'
+      TabOrder = 0
+    end
+    object ProcessEdit: TEdit
+      Touch.InteractiveGestures = [LongTap, DoubleTap]
+      Align = VertCenter
+      TabOrder = 1
+      Text = 'scale(0.5)'
+      Position.X = 65.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 232.000000000000000000
+      Size.Height = 24.000000000000000000
+      Size.PlatformDefault = False
+      StyledSettings = [Family, Style, FontColor]
+    end
+  end
+  object Layout1: TLayout
+    Anchors = [akTop, akRight]
+    Position.X = 520.000000000000000000
+    Position.Y = 8.000000000000000000
+    Size.Width = 297.000000000000000000
+    Size.Height = 41.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    object Label1: TLabel
+      Align = Left
+      StyledSettings = [Family, Style]
+      Size.Width = 65.000000000000000000
+      Size.Height = 41.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.FontColor = claWhite
+      Text = 'condition:'
+      TabOrder = 0
+    end
+    object conditionEdit: TEdit
+      Touch.InteractiveGestures = [LongTap, DoubleTap]
+      Align = VertCenter
+      TabOrder = 1
+      Text = '(width*height)>(300*300)'
+      Position.X = 65.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 232.000000000000000000
+      Size.Height = 24.000000000000000000
+      Size.PlatformDefault = False
+      StyledSettings = [Family, Style, FontColor]
+    end
+  end
+  object RunButton: TButton
+    Anchors = [akTop, akRight]
+    Position.X = 584.000000000000000000
+    Position.Y = 104.000000000000000000
+    Size.Width = 57.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+    Text = 'Run'
+    OnClick = RunButtonClick
+  end
+  object Memo1: TMemo
+    Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+    DataDetectorTypes = []
+    Anchors = [akTop, akRight, akBottom]
+    Position.X = 520.000000000000000000
+    Position.Y = 136.000000000000000000
+    Size.Width = 297.000000000000000000
+    Size.Height = 329.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 6
+    Viewport.Width = 293.000000000000000000
+    Viewport.Height = 325.000000000000000000
+  end
+end

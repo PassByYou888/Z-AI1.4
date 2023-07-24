@@ -1,0 +1,69 @@
+object ZMetricForm: TZMetricForm
+  Left = 0
+  Top = 0
+  Caption = 'Z-Metric demo. create by.qq600585'
+  ClientHeight = 539
+  ClientWidth = 1199
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  DesignerMasterStyle = 0
+  object Training_IMGClassifier_Button: TButton
+    Position.X = 16.000000000000000000
+    Position.Y = 8.000000000000000000
+    Size.Width = 217.000000000000000000
+    Size.Height = 33.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+    Text = #35757#32451#22270#29255#20998#31867#22120
+    OnClick = Training_IMGClassifier_ButtonClick
+  end
+  object Memo1: TMemo
+    Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+    DataDetectorTypes = []
+    Lines.Strings = (
+      'Z-Metric'#32593#32476#26159'ZAI'#33258#21019#30340#22810#23610#24230#20998#31867#22120#32593#32476#65292#25512#29702#24378#24230#20559#20013
+      'Z-Metric'#30340#36755#20837#25968#25454#20855#26377#23610#24230#26080#20851#24615
+      'Z-Metric'#30340#23384#20648#23610#23544#21644#20869#23384#28040#32791'ZAI 1.33'#38477#20302'90%'#65292#22788#29702#22823#35268#27169#25968#25454#20998#31867#20351#29992'ZMetric'#23558#20250#26356#24555
+      'Z-Metric'#30340#32593#32476#26500#24314#32454#33410#65292#35265#30333#30382#20070
+      'by.qq600585'
+      '')
+    Anchors = [akLeft, akTop, akRight, akBottom]
+    Position.X = 16.000000000000000000
+    Position.Y = 48.000000000000000000
+    Size.Width = 1162.000000000000000000
+    Size.Height = 476.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 4
+    Viewport.Width = 1158.000000000000000000
+    Viewport.Height = 472.000000000000000000
+  end
+  object Timer1: TTimer
+    Interval = 100
+    OnTimer = Timer1Timer
+    Left = 728
+    Top = 368
+  end
+  object ResetButton: TButton
+    Anchors = [akTop, akRight]
+    Position.X = 993.000000000000000000
+    Position.Y = 8.000000000000000000
+    Size.Width = 185.000000000000000000
+    Size.Height = 33.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+    Text = #37325#32622
+    OnClick = ResetButtonClick
+  end
+  object TestClassifierButton: TButton
+    Position.X = 240.000000000000000000
+    Position.Y = 8.000000000000000000
+    Size.Width = 185.000000000000000000
+    Size.Height = 33.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    Text = #27979#35797#27169#22411
+    OnClick = TestClassifierButtonClick
+  end
+end

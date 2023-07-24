@@ -1,0 +1,89 @@
+object FaceRec_ZMetricV2_GPU_DemoForm: TFaceRec_ZMetricV2_GPU_DemoForm
+  Left = 0
+  Top = 0
+  Caption = 'Face Recognition ZMetric V2.0'
+  ClientHeight = 522
+  ClientWidth = 884
+  StyleBook = StyleDataModule.GlobalStyleBook
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnMouseDown = FormMouseDown
+  OnMouseMove = FormMouseMove
+  OnMouseUp = FormMouseUp
+  OnMouseWheel = FormMouseWheel
+  OnPaint = FormPaint
+  DesignerMasterStyle = 0
+  object fpsTimer: TTimer
+    Interval = 20
+    OnTimer = fpsTimerTimer
+    Left = 72
+    Top = 72
+  end
+  object TrainingButton: TButton
+    Anchors = [akTop, akRight]
+    Position.X = 792.000000000000000000
+    Position.Y = 56.000000000000000000
+    Size.Width = 80.000000000000000000
+    Size.Height = 33.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 4
+    Text = #35757#32451
+    OnClick = TrainingButtonClick
+  end
+  object remove_Button: TButton
+    Anchors = [akTop, akRight]
+    Position.X = 792.000000000000000000
+    Position.Y = 96.000000000000000000
+    Size.Width = 80.000000000000000000
+    Size.Height = 33.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+    Text = #31227#38500#35757#32451
+    OnClick = remove_ButtonClick
+  end
+  object Test_Button: TButton
+    Anchors = [akTop, akRight]
+    Position.X = 776.000000000000000000
+    Position.Y = 192.000000000000000000
+    Size.Width = 97.000000000000000000
+    Size.Height = 33.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 6
+    Text = #27979#35797#35757#32451#32467#26524
+    OnClick = Test_ButtonClick
+  end
+  object Jitter_CheckBox: TCheckBox
+    Anchors = [akTop, akRight]
+    IsChecked = True
+    Position.X = 784.000000000000000000
+    Position.Y = 168.000000000000000000
+    Size.Width = 81.000000000000000000
+    Size.Height = 19.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 9
+    Text = #25238#21160#36755#20837
+  end
+  object Fast_CheckBox: TCheckBox
+    Anchors = [akTop, akRight]
+    IsChecked = True
+    Position.X = 784.000000000000000000
+    Position.Y = 144.000000000000000000
+    Size.Width = 81.000000000000000000
+    Size.Height = 19.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 8
+    Text = #39640#36895#20505#36873
+  end
+  object clear_box_Button: TButton
+    Anchors = [akTop, akRight]
+    Position.X = 792.000000000000000000
+    Position.Y = 16.000000000000000000
+    Size.Width = 80.000000000000000000
+    Size.Height = 33.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+    Text = #28165#26694
+    OnClick = clear_box_ButtonClick
+  end
+end

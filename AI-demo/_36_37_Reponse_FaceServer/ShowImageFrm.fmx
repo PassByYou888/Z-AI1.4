@@ -1,0 +1,24 @@
+object ShowImageForm: TShowImageForm
+  Left = 0
+  Top = 0
+  Caption = 'Image.'
+  ClientHeight = 633
+  ClientWidth = 877
+  Position = MainFormCenter
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnClose = FormClose
+  OnKeyUp = FormKeyUp
+  DesignerMasterStyle = 0
+  object ImageViewer: TImage
+    MultiResBitmap = <
+      item
+      end>
+    Align = Client
+    MarginWrapMode = Fit
+    Size.Width = 877.000000000000000000
+    Size.Height = 633.000000000000000000
+    Size.PlatformDefault = False
+  end
+end

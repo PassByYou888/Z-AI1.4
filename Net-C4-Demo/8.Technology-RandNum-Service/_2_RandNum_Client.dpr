@@ -1,0 +1,89 @@
+program _2_RandNum_Client;
+
+{$APPTYPE CONSOLE}
+
+{$R *.res}
+
+
+uses
+  System.SysUtils,
+  PasAI.Core,
+  PasAI.PascalStrings,
+  PasAI.UnicodeMixedLib,
+  PasAI.Status,
+  PasAI.MemoryStream,
+  PasAI.Notify,
+  PasAI.Net,
+  PasAI.ListEngine,
+  PasAI.Net.PhysicsIO,
+  PasAI.Net.C4,
+  PasAI.Net.C4_RandSeed,
+  PasAI.Net.C4_Console_APP;
+
+var
+  exit_signal: Boolean;
+
+procedure Do_Check_On_Exit;
+var
+  n: string;
+  cH: TC40_Console_Help;
+begin
+  cH := TC40_Console_Help.Create;
+  repeat
+    TCompute.Sleep(100);
+    Readln(n);
+    cH.Run_HelpCmd(n);
+  until cH.IsExit;
+  disposeObject(cH);
+  exit_signal := True;
+end;
+
+const
+  // 调度服务器端口公网地址,可以是ipv4,ipv6,dns
+  // 公共地址,不能给127.0.0.1这类
+  Internet_DP_Addr_ = '127.0.0.1';
+  // 调度服务器端口
+  Internet_DP_Port_ = 8387;
+
+function GetRandSeed_Client: TC40_RandSeed_Client;
+begin
+  Result := TC40_RandSeed_Client(C40_ClientPool.FindConnectedServiceTyp('RandSeed'));
+end;
+
+begin
+  PasAI.Net.C4.C40_QuietMode := False;
+  PasAI.Net.C4.C40_PhysicsTunnelPool.GetOrCreatePhysicsTunnel(Internet_DP_Addr_, Internet_DP_Port_, 'DP|RandSeed', nil);
+
+  PasAI.Net.C4.C40_ClientPool.WaitConnectedDoneP('RandSeed', procedure(States_: TC40_Custom_ClientPool_Wait_States)
+    var
+      i: Integer;
+      L: TUInt32List;
+    begin
+      L := TUInt32List.Create;
+      for i := 0 to 100 do
+          GetRandSeed_Client.MakeSeed_P('my_group', 1000, 9999,
+          procedure(sender: TC40_RandSeed_Client; Seed_: UInt32)
+          begin
+            L.Add(Seed_);
+          end);
+
+      GetRandSeed_Client.DTNoAuthClient.SendTunnel.IO_IDLE_TraceP(nil, procedure(data: TCore_Object)
+        var
+          i: Integer;
+        begin
+          for i := 0 to L.Count - 1 do
+              GetRandSeed_Client.RemoveSeed('my_group', L[i]);
+          L.Free;
+        end);
+    end);
+
+  // 主循环
+  StatusThreadID := False;
+  exit_signal := False;
+  TCompute.RunC_NP(@Do_Check_On_Exit);
+  while not exit_signal do
+      PasAI.Net.C4.C40Progress;
+
+  PasAI.Net.C4.C40Clean;
+
+end.

@@ -1,0 +1,171 @@
+object DNN_Dog_MainForm: TDNN_Dog_MainForm
+  Left = 0
+  Top = 0
+  Caption = 'DNN Dog recognition. create by.qq600585'
+  ClientHeight = 770
+  ClientWidth = 1370
+  StyleBook = StyleDataModule.GlobalStyleBook
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  DesignerMasterStyle = 0
+  object Layout1: TLayout
+    Align = Top
+    Margins.Left = 5.000000000000000000
+    Margins.Top = 5.000000000000000000
+    Margins.Right = 5.000000000000000000
+    Margins.Bottom = 5.000000000000000000
+    Position.X = 5.000000000000000000
+    Position.Y = 5.000000000000000000
+    Size.Width = 1360.000000000000000000
+    Size.Height = 33.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    object DogDetectorButton: TButton
+      Align = Left
+      StyledSettings = [Family, FontColor]
+      Size.Width = 105.000000000000000000
+      Size.Height = 33.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 3
+      Text = 'Run Detector'
+      TextSettings.Font.Size = 14.000000000000000000
+      TextSettings.Font.StyleExt = {00070000000000000004000000}
+      OnClick = DogDetectorButtonClick
+    end
+    object MetricButton: TButton
+      Align = Left
+      StyledSettings = [Family, FontColor]
+      Position.X = 105.000000000000000000
+      Size.Width = 105.000000000000000000
+      Size.Height = 33.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 2
+      Text = 'Run Metric'
+      TextSettings.Font.Size = 14.000000000000000000
+      TextSettings.Font.StyleExt = {00070000000000000004000000}
+      OnClick = MetricButtonClick
+    end
+    object OpenEditorForDogDetectorButton: TButton
+      Align = Right
+      StyledSettings = [Family, Size, Style]
+      Position.X = 1016.000000000000000000
+      Size.Width = 184.000000000000000000
+      Size.Height = 33.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 1
+      Text = 'Open Editor For Dog Detection'
+      TextSettings.FontColor = claLime
+      OnClick = OpenEditorForDogDetectorButtonClick
+    end
+    object OpenEditorForDogMetricButton: TButton
+      Align = Right
+      StyledSettings = [Family, Size, Style]
+      Position.X = 1200.000000000000000000
+      Size.Width = 160.000000000000000000
+      Size.Height = 33.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 0
+      Text = 'Open Editor For Dog Metric'
+      TextSettings.FontColor = claLime
+      OnClick = OpenEditorForDogMetricButtonClick
+    end
+  end
+  object Memo: TMemo
+    Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+    DataDetectorTypes = []
+    Lines.Strings = (
+      #35813'demo'#20197#28436#31034#24314#27169#20026#20027','#19981#35201#22826#20851#27880'demo'#31243#24207','#22810#20851#27880#24314#27169#26041#27861
+      ''
+      #24230#37327#21270#30340#27531#24046#32593#32476#26159#26368#26234#33021#30340#22270#29255#20998#31867#22120':'
+      
+        #27531#24046#32593#32476#27599#27425#22312#36755#20837#19968#24352#22270#29255#26102','#20250#23558#22270#29255#25286#25104#30862#29255','#28982#21518#21578#35785#31070#32463#32593#32476','#36825#26159#21516#19968#31181#20998#31867','#36755#20837#22823#37327#21516#31867#22270#29255#30340#36755#20837','#31070#32463#32593#32476#20250#30693#36947#36825#24352#22270#30340 +
+        #26159#21738#20010#20998#31867'.'
+      #27531#24046#32593#32476#21487#20197#20687#20154#31867#29992#35270#35273#35748#35782#20107#29289#19968#26679','#30495#23454#30340#21028#26029#20986#25105#20204#39044#26399#30340#32467#26524'.'
+      'ps:'#27531#24046#32593#32476#26080#27861#20570#21040#20687#22270#29255#20998#31867#22120#37027#26679#33258#30001#36755#20837','#27531#24046#24517#39035#25353#35268#33539#21270#23610#24230#36755#20837
+      'ps:'#27531#24046#32593#32476#30340#35757#32451#36895#24230#38750#24120#24555','#20351#29992'gpu'#19968#33324#22312'1'#20998#38047#23601#21487#20197#23436#25104#35745#31639'.'
+      'ps:'#24230#37327#21270#35757#32451#26368#23569#24517#39035#26377#20004#20010#20998#31867','#21482#26377#19968#20010#20998#31867#26159#19981#34892#30340
+      
+        'ps:'#27531#24046#32593#32476#30340#24230#37327#21270#36755#20986#21487#20197#26159#22522#20110'TLearn'#30340#25968#25454','#20063#21487#20197#26159#30452#25509#36755#20986'kdtree'#25968#25454',TLearn'#36866#29992#20110'10000'#20998#31867#20197#19979#30340 +
+        #24230#37327#21270#35745#31639',kdtree'#36866#29992#20110#39640#20110'10000'#20998#31867#30340#35745#31639
+      'ps:'#27531#24046#32593#32476#30340#35745#31639#38750#24120#24555','#21487#20197#20351#29992'cpu'#20063#21487#20197#20351#29992'gpu,'#25105#20204#21487#20197#23558#35745#31639#24341#25806#35774#32622#25104'MKL'#26469#27979#35797
+      'ps:'#27531#24046#32593#32476#20998#20026#29992#20110#24230#37327#21270#36755#20986#30340#27531#24046#32593#32476','#29992#20110#22270#29255#20998#31867#30340#27531#24046#32593#32476','#26412'demo'#20351#29992#24230#37327#21270#27531#24046#32593#32476','#27880#24847#21306#20998
+      'ps:'#24230#37327#21270#27531#24046#32593#32476#21644#23545#35937#26816#27979#22120#26159#22909#25645#26723','#27880#24847#30475#24314#27169#30340#26041#27861
+      ''
+      #35813'demo'#21491#19978#35282#26377#20004#20010#25171#24320#27169#22411#30340#25353#38062','#20998#21035#26159#26816#27979#22120#26679#26412','#21644#24230#37327#21270#26679#26412','#30452#25509#35757#32451#21363#21487'.'
+      #35757#32451#26041#27861','#21442#32771#23545#24212#25991#26723'.'
+      
+        #33719#21462#35757#32451#21442#25968#30340#26041#27861':'#29992'package tool'#25171#24320'dog_train_output_detector.OX,'#37324#38754#26377#35757#32451#26085#24535#36807#31243',' +
+        #21442#25968','#36755#20986#27169#22411','#36755#20837#27169#22411','
+      
+        #25105#20204#22312#24314#27169#24037#20855#21551#21160#35757#32451','#23558'dog_train_output_detector.OX'#31181'param.txt'#20869#23481#31896#36148#36807#21435#21363#21487',od'#30340#35757 +
+        #32451#26102#38388#22823#27010#22312'10-20'#20998#38047#24038#21491','#35270'gpu'#24615#33021#32780#23450
+      'ps:cpu'#35757#32451#20250#38750#24120#24930
+      ''
+      #35813'demo'#36873#25321#22270#29255#21518','#22312#20027#35270#21475#20250#26174#31034#20004#24352#22270','#24038#36793#26159#21407#22987#22270#29255#29992#20110#26816#27979#22120','#21491#36793#26159#24230#37327#21270#35745#31639#30340#22270#29255#29992#20110#24230#37327#21270#35745#31639
+      ''
+      ''
+      ''
+      ''
+      ''
+      '')
+    Align = Bottom
+    Position.Y = 464.000000000000000000
+    Size.Width = 1370.000000000000000000
+    Size.Height = 306.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+    Viewport.Width = 1350.000000000000000000
+    Viewport.Height = 302.000000000000000000
+  end
+  object Layout2: TLayout
+    Align = Client
+    Size.Width = 1370.000000000000000000
+    Size.Height = 421.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+    object pb: TPaintBox
+      Align = Client
+      ClipChildren = True
+      ClipParent = True
+      Size.Width = 1113.000000000000000000
+      Size.Height = 421.000000000000000000
+      Size.PlatformDefault = False
+      OnMouseDown = pbMouseDown
+      OnMouseMove = pbMouseMove
+      OnMouseUp = pbMouseUp
+      OnMouseWheel = pbMouseWheel
+      OnPaint = pbPaint
+    end
+    object ListBox: TListBox
+      Align = MostLeft
+      Size.Width = 249.000000000000000000
+      Size.Height = 421.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 1
+      DisableFocusEffect = True
+      DefaultItemStyles.ItemStyle = ''
+      DefaultItemStyles.GroupHeaderStyle = ''
+      DefaultItemStyles.GroupFooterStyle = ''
+      Viewport.Width = 245.000000000000000000
+      Viewport.Height = 417.000000000000000000
+    end
+    object Splitter1: TSplitter
+      Align = Left
+      Cursor = crHSplit
+      MinSize = 20.000000000000000000
+      Position.X = 249.000000000000000000
+      ShowGrip = False
+      Size.Width = 8.000000000000000000
+      Size.Height = 421.000000000000000000
+      Size.PlatformDefault = False
+    end
+  end
+  object Timer1: TTimer
+    Interval = 10
+    OnTimer = Timer1Timer
+    Left = 312
+    Top = 232
+  end
+end

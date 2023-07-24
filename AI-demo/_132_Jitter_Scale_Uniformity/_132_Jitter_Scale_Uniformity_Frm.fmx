@@ -1,0 +1,191 @@
+object _132_Jitter_Scale_Uniformity_Form: T_132_Jitter_Scale_Uniformity_Form
+  Left = 0
+  Top = 0
+  Caption = #25238#21160#23610#24230#19968#33268#24615
+  ClientHeight = 687
+  ClientWidth = 1076
+  StyleBook = StyleDataModule.GlobalStyleBook
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnMouseDown = FormMouseDown
+  OnMouseMove = FormMouseMove
+  OnMouseUp = FormMouseUp
+  OnMouseWheel = FormMouseWheel
+  OnPaint = FormPaint
+  DesignerMasterStyle = 0
+  object fpsTimer: TTimer
+    Interval = 20
+    OnTimer = fpsTimerTimer
+    Left = 216
+    Top = 104
+  end
+  object tool_pb: TPaintBox
+    Anchors = [akTop, akRight]
+    Position.X = 872.000000000000000000
+    Position.Y = 8.000000000000000000
+    Size.Width = 201.000000000000000000
+    Size.Height = 249.000000000000000000
+    Size.PlatformDefault = False
+    OnPaint = tool_pbPaint
+    object Fit_CheckBox: TCheckBox
+      Position.X = 112.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 81.000000000000000000
+      Size.Height = 19.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 0
+      Text = 'inner Fit'
+    end
+    object XY_Offset_Scale_Layout: TLayout
+      Padding.Right = 10.000000000000000000
+      Position.X = 8.000000000000000000
+      Position.Y = 32.000000000000000000
+      Size.Width = 177.000000000000000000
+      Size.Height = 25.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 1
+      object Label2: TLabel
+        Align = Left
+        Margins.Right = 5.000000000000000000
+        Size.Width = 105.000000000000000000
+        Size.Height = 25.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.HorzAlign = Trailing
+        Text = 'XY Offset Scale'
+        TabOrder = 0
+      end
+      object XY_Offset_Scale_Edit: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Client
+        TabOrder = 1
+        Text = '0.05'
+        Size.Width = 57.000000000000000000
+        Size.Height = 25.000000000000000000
+        Size.PlatformDefault = False
+      end
+    end
+    object Rotate_Layout: TLayout
+      Padding.Right = 10.000000000000000000
+      Position.X = 8.000000000000000000
+      Position.Y = 64.000000000000000000
+      Size.Width = 177.000000000000000000
+      Size.Height = 25.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 2
+      object Label3: TLabel
+        Align = Left
+        Margins.Right = 5.000000000000000000
+        Size.Width = 105.000000000000000000
+        Size.Height = 25.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.HorzAlign = Trailing
+        Text = 'Rotate'
+        TabOrder = 0
+      end
+      object Rotate_Edit: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Client
+        TabOrder = 1
+        Text = '20.0'
+        Size.Width = 57.000000000000000000
+        Size.Height = 25.000000000000000000
+        Size.PlatformDefault = False
+      end
+    end
+    object Scale_Layout: TLayout
+      Padding.Right = 10.000000000000000000
+      Position.X = 8.000000000000000000
+      Position.Y = 96.000000000000000000
+      Size.Width = 177.000000000000000000
+      Size.Height = 25.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 3
+      object Label7: TLabel
+        Align = Left
+        Margins.Right = 5.000000000000000000
+        Size.Width = 105.000000000000000000
+        Size.Height = 25.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.HorzAlign = Trailing
+        Text = 'Scale'
+        TabOrder = 0
+      end
+      object Scale_Edit: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Client
+        TabOrder = 1
+        Text = '0.1'
+        Size.Width = 57.000000000000000000
+        Size.Height = 25.000000000000000000
+        Size.PlatformDefault = False
+      end
+    end
+    object WidthLayout: TLayout
+      Padding.Right = 10.000000000000000000
+      Position.X = 48.000000000000000000
+      Position.Y = 128.000000000000000000
+      Size.Width = 137.000000000000000000
+      Size.Height = 25.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 4
+      object Label6: TLabel
+        Align = Left
+        Margins.Right = 5.000000000000000000
+        Size.Width = 65.000000000000000000
+        Size.Height = 25.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.HorzAlign = Trailing
+        Text = 'SS Width'
+        TabOrder = 0
+      end
+      object SSWidthEdit: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Client
+        TabOrder = 1
+        Text = '150'
+        Size.Width = 57.000000000000000000
+        Size.Height = 25.000000000000000000
+        Size.PlatformDefault = False
+      end
+    end
+    object HeightLayout: TLayout
+      Padding.Right = 10.000000000000000000
+      Position.X = 48.000000000000000000
+      Position.Y = 160.000000000000000000
+      Size.Width = 137.000000000000000000
+      Size.Height = 25.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 5
+      object Label5: TLabel
+        Align = Left
+        Margins.Right = 5.000000000000000000
+        Size.Width = 65.000000000000000000
+        Size.Height = 25.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.HorzAlign = Trailing
+        Text = 'SS Height'
+        TabOrder = 0
+      end
+      object SSHeightEdit: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Client
+        TabOrder = 1
+        Text = '150'
+        Size.Width = 57.000000000000000000
+        Size.Height = 25.000000000000000000
+        Size.PlatformDefault = False
+      end
+    end
+    object jitterButton: TButton
+      Position.X = 65.000000000000000000
+      Position.Y = 192.000000000000000000
+      Size.Width = 120.000000000000000000
+      Size.Height = 49.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 6
+      Text = 'jitter'
+      OnClick = jitterButtonClick
+    end
+  end
+end

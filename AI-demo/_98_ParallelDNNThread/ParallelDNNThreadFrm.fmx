@@ -1,0 +1,86 @@
+object ParallelDNNThreadForm: TParallelDNNThreadForm
+  Left = 0
+  Top = 0
+  Caption = 'Parallel DNN Thread. create by.qq600585'
+  ClientHeight = 707
+  ClientWidth = 1060
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  DesignerMasterStyle = 0
+  object Memo: TMemo
+    Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+    DataDetectorTypes = []
+    Align = Bottom
+    Position.Y = 552.000000000000000000
+    Size.Width = 1060.000000000000000000
+    Size.Height = 155.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 0
+    Viewport.Width = 1056.000000000000000000
+    Viewport.Height = 151.000000000000000000
+  end
+  object fpsTimer: TTimer
+    Interval = 10
+    OnTimer = fpsTimerTimer
+    Left = 392
+    Top = 200
+  end
+  object pb: TPaintBox
+    Align = Client
+    ClipChildren = True
+    ClipParent = True
+    Size.Width = 1060.000000000000000000
+    Size.Height = 552.000000000000000000
+    Size.PlatformDefault = False
+    OnMouseDown = pbMouseDown
+    OnMouseMove = pbMouseMove
+    OnMouseUp = pbMouseUp
+    OnMouseWheel = pbMouseWheel
+    OnPaint = pbPaint
+    object SyncFaceDetButton: TButton
+      Anchors = [akTop, akRight]
+      Position.X = 944.000000000000000000
+      Position.Y = 40.000000000000000000
+      Size.Width = 104.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 3
+      Text = #21516#27493#26816#27979#20154#33080
+      OnClick = SyncFaceDetButtonClick
+    end
+    object PrintDevButton: TButton
+      Anchors = [akTop, akRight]
+      Position.X = 944.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 104.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 0
+      Text = #26174#31034#35774#22791#20449#24687
+      OnClick = PrintDevButtonClick
+    end
+    object AsyncFaceDetButton: TButton
+      Anchors = [akTop, akRight]
+      Position.X = 944.000000000000000000
+      Position.Y = 72.000000000000000000
+      Size.Width = 104.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 2
+      Text = #24322#27493#26816#27979#20154#33080
+      OnClick = AsyncFaceDetButtonClick
+    end
+    object clearDetButton: TButton
+      Anchors = [akTop, akRight]
+      Position.X = 944.000000000000000000
+      Position.Y = 104.000000000000000000
+      Size.Width = 104.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 1
+      Text = #22797#20301
+      OnClick = clearDetButtonClick
+    end
+  end
+end

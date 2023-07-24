@@ -1,0 +1,214 @@
+object _124_Multi_Tracker_Tech_Form: T_124_Multi_Tracker_Tech_Form
+  Left = 0
+  Top = 0
+  Caption = 'Multi Tracker technology'
+  ClientHeight = 672
+  ClientWidth = 1297
+  StyleBook = StyleDataModule.GlobalStyleBook
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnMouseDown = FormMouseDown
+  OnMouseMove = FormMouseMove
+  OnMouseUp = FormMouseUp
+  OnPaint = FormPaint
+  DesignerMasterStyle = 0
+  object ProgLayout: TLayout
+    Align = Center
+    Size.Width = 737.000000000000000000
+    Size.Height = 64.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    object ProgressBar: TProgressBar
+      Align = Bottom
+      HitTest = False
+      Orientation = Horizontal
+      Position.Y = 41.000000000000000000
+      Size.Width = 737.000000000000000000
+      Size.Height = 23.000000000000000000
+      Size.PlatformDefault = False
+    end
+    object progLabel: TLabel
+      Align = Bottom
+      Position.Y = 24.000000000000000000
+      Size.Width = 737.000000000000000000
+      Size.Height = 17.000000000000000000
+      Size.PlatformDefault = False
+      Text = '...'
+      TabOrder = 1
+    end
+  end
+  object TrackBar: TTrackBar
+    Align = Bottom
+    CanParentFocus = True
+    Orientation = Horizontal
+    Position.Y = 660.000000000000000000
+    Size.Width = 1297.000000000000000000
+    Size.Height = 12.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+  end
+  object fpsTimer: TTimer
+    Interval = 10
+    OnTimer = fpsTimerTimer
+    Left = 184
+    Top = 64
+  end
+  object Tool_Layout: TLayout
+    Anchors = [akTop, akRight]
+    Padding.Top = 5.000000000000000000
+    Position.X = 720.000000000000000000
+    Position.Y = 8.000000000000000000
+    Size.Width = 569.000000000000000000
+    Size.Height = 49.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+    object FrameOptLayout: TLayout
+      Align = Top
+      Padding.Left = 2.000000000000000000
+      Padding.Top = 2.000000000000000000
+      Padding.Right = 2.000000000000000000
+      Padding.Bottom = 2.000000000000000000
+      Position.Y = 5.000000000000000000
+      Size.Width = 569.000000000000000000
+      Size.Height = 36.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 0
+      OnPainting = FrameOptLayoutPainting
+      object begin_Label: TLabel
+        Align = Left
+        Margins.Left = 2.000000000000000000
+        Margins.Top = 5.000000000000000000
+        Margins.Bottom = 5.000000000000000000
+        Position.X = 155.000000000000000000
+        Position.Y = 7.000000000000000000
+        Size.Width = 46.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.HorzAlign = Center
+        Text = 'Begin'
+        TabOrder = 2
+        TabStop = False
+      end
+      object TrackerStartEdit: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Left
+        TabOrder = 3
+        Text = '0'
+        Position.X = 203.000000000000000000
+        Position.Y = 7.000000000000000000
+        Margins.Left = 2.000000000000000000
+        Margins.Top = 5.000000000000000000
+        Margins.Right = 2.000000000000000000
+        Margins.Bottom = 5.000000000000000000
+        Size.Width = 70.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        object GoStartFrameEditButton: TEditButton
+          CanFocus = False
+          Cursor = crArrow
+          TextSettings.FontColor = claLime
+          Size.Width = 28.000000000000000000
+          Size.Height = 18.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 0
+          Text = 'GO'
+          OnClick = GoStartFrameEditButtonClick
+        end
+      end
+      object end_Label: TLabel
+        Align = Left
+        Margins.Left = 2.000000000000000000
+        Margins.Top = 5.000000000000000000
+        Margins.Bottom = 5.000000000000000000
+        Position.X = 277.000000000000000000
+        Position.Y = 7.000000000000000000
+        Size.Width = 40.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.HorzAlign = Center
+        Text = 'End'
+        TabOrder = 4
+        TabStop = False
+      end
+      object TrackerEndEdit: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Left
+        TabOrder = 5
+        Text = '0'
+        Position.X = 319.000000000000000000
+        Position.Y = 7.000000000000000000
+        Margins.Left = 2.000000000000000000
+        Margins.Top = 5.000000000000000000
+        Margins.Right = 2.000000000000000000
+        Margins.Bottom = 5.000000000000000000
+        Size.Width = 70.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        object GoEndFrameEditButton: TEditButton
+          CanFocus = False
+          Cursor = crArrow
+          TextSettings.FontColor = claLime
+          Size.Width = 28.000000000000000000
+          Size.Height = 18.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 0
+          Text = 'GO'
+          OnClick = GoEndFrameEditButtonClick
+        end
+      end
+      object Proximity_Label: TLabel
+        Align = Left
+        Margins.Left = 2.000000000000000000
+        Margins.Top = 5.000000000000000000
+        Margins.Bottom = 5.000000000000000000
+        Position.X = 393.000000000000000000
+        Position.Y = 7.000000000000000000
+        Size.Width = 120.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.HorzAlign = Center
+        Text = 'Minimize Proximity'
+        TabOrder = 6
+        TabStop = False
+      end
+      object MinProximityEdit: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Left
+        TabOrder = 7
+        Text = '8.0'
+        Position.X = 515.000000000000000000
+        Position.Y = 7.000000000000000000
+        Margins.Left = 2.000000000000000000
+        Margins.Top = 5.000000000000000000
+        Margins.Right = 2.000000000000000000
+        Margins.Bottom = 5.000000000000000000
+        Size.Width = 46.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+      end
+      object ComputeTrackerButton: TButton
+        Align = MostLeft
+        Position.X = 2.000000000000000000
+        Position.Y = 2.000000000000000000
+        Size.Width = 105.000000000000000000
+        Size.Height = 32.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 1
+        Text = 'Comptue Tracker'
+        OnClick = ComputeTrackerButtonClick
+      end
+      object clearTrackerButton: TButton
+        Align = MostLeft
+        Position.X = 107.000000000000000000
+        Position.Y = 2.000000000000000000
+        Size.Width = 46.000000000000000000
+        Size.Height = 32.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        Text = 'clear'
+        OnClick = clearTrackerButtonClick
+      end
+    end
+  end
+end
