@@ -137,9 +137,13 @@ DrawEngine的应用并不是直接让程序写完流程,因为渲染需要数据
 3. **编译说明**
 [编译说明](https://zpascal.net/%E7%BC%96%E8%AF%91ZAI1.4%E5%BC%80%E6%BA%90%E7%89%88%E6%9C%AC%E6%BA%90%E7%A0%81.pdf)
 
+# 建模入门与指引
+
+请阅读: [1.34老版本文档](https://zpascal.net/OLD_Index.html)
+
 # gpu支持性
 
-[详情](https://zpascal.net/GPU_Support.htm)
+请阅读: [详情](https://zpascal.net/GPU_Support.htm)
 
 # 编译结果
 
@@ -154,8 +158,8 @@ DrawEngine的应用并不是直接让程序写完流程,因为渲染需要数据
 
 # 有问题可到zAI机器学习群提出
 
-- qq群号 811381795
-- 也可以直接加作者qq 600585 
+- qq群号811381795
+- 也可以直接加作者qq600585
 
 
 完
