@@ -1,6 +1,5 @@
 # Z-AI V1.4 发行版本 
 
-
 **简单介绍**
 
 - 被ZNet,ZDB2,Code模型,AI-Tech2022,众多新技术体系加持
@@ -12,7 +11,7 @@
 
 # 开源项目定位
 
-**开源版本可以自由获取,自由建模,自己解决识别问题,而项目框架设计,底座和平台化,落地等环节并不开源,也不提供文档.**
+**开源版本可以自由获取,自由建模,自己解决识别问题,而项目框架设计,底座和平台化,落地等环节并不开源,也不提供文档**
 
 # 1.4 AI技术体系(从日志文档摘录)
 
@@ -137,9 +136,11 @@ DrawEngine的应用并不是直接让程序写完流程,因为渲染需要数据
 3. **编译说明**
 [编译说明](https://zpascal.net/%E7%BC%96%E8%AF%91ZAI1.4%E5%BC%80%E6%BA%90%E7%89%88%E6%9C%AC%E6%BA%90%E7%A0%81.pdf)
 
-# 编译AI-Demo后,运行程序需要下载数据
+## 部署AI-Demo运行数据
 
-详见 https://zpascal.net 直接[下载](http://zpascal.net/AI-Demo-Data.rar)
+部署请阅读[说明](https://zpascal.net) 
+
+[下载](http://zpascal.net/AI-Demo-Data.rar)
 
 # 建模入门与指引
 
@@ -149,7 +150,7 @@ DrawEngine的应用并不是直接让程序写完流程,因为渲染需要数据
 
 请阅读: [详情](https://zpascal.net/GPU_Support.htm)
 
-# 编译结果
+# delphi编译结果(编译测试版本XE10.4.2与XE11.3)
 
 | 架构   | AI-Demo | tools | Net-tools | Net-Advance-Demo | Net-C4-Demo | Net-demo |
 | ------- | :------: | :------: | :------: | :------: | :------: | :------: |
@@ -159,6 +160,11 @@ DrawEngine的应用并不是直接让程序写完流程,因为渲染需要数据
 | CUDA10  | Passed | Passed | Passed | Passed | Passed | Passed |
 | CUDA11  | Passed | Passed | Passed | Passed | Passed | Passed |
 | CUDA12  | Passed | Passed | Passed | Passed | Passed | Passed |
+
+# fpc编译结果
+
+**fpc编译器测试通过source目录中的全部库,source目录子目录为平台关联性,fpc不支持**
+
 
 # 有问题可到zAI机器学习群提出
 
