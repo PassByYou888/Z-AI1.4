@@ -138,9 +138,8 @@ DrawEngine的应用并不是直接让程序写完流程,因为渲染需要数据
 
 ## 部署AI-Demo运行数据
 
-部署请阅读[说明](https://zpascal.net) 
-
-[下载](http://zpascal.net/AI-Demo-Data.rar)
+- AI-Demo所需运行数据,将数据解压到"Z-AI1.4\AI-demo\Binary\"目录 [下载](http://zpascal.net/AI-Demo-Data.rar)
+- 先解压运行数据,再用计算引擎覆盖,颠倒顺序可能导致结果无法预料
 
 # 建模入门与指引
 
