@@ -1,12 +1,11 @@
-# Z-AI V1.4 发行版本 [详情](https://zpascal.net/ZAI%201.4%E6%9B%B4%E6%96%B0%E6%97%A5%E5%BF%972023_7.pdf)
+# Z-AI V1.4 发行版本 
 
-关于1.4升级简单介绍
-
-- 对技术有更深度理解
 - 被ZNet,ZDB2,Code模型,AI-Tech2022,众多新技术体系加持
 - 接近于重构的升级
 - 生产建模端工具链逼近400个
-- 移除AI建模限制
+- 接近150个AI相关Demo
+- 没有AI建模限制
+- 更多请阅读 [详情](https://zpascal.net/ZAI%201.4%E6%9B%B4%E6%96%B0%E6%97%A5%E5%BF%972023_7.pdf)
 
 # AI技术体系
 
@@ -44,7 +43,7 @@
 # 编译
 
 
-| 架构 | AI | tools | Net tools | Net Advance | Net C4 | Net demo |
+| 架构   | AI-Demo | tools | Net-tools | Net-Advance-Demo | Net-C4-Demo | Net-demo |
 | ------- | :------: | :------: | :------: | :------: | :------: | :------: |
 | x86  | Passed | Passed | Passed | Passed | Passed | Passed |
 | x64  | Passed | Passed | Passed | Passed | Passed | Passed |
@@ -55,5 +54,3 @@
 
 
 by.qq600585
-
-
