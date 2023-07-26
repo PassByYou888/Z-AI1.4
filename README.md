@@ -137,6 +137,10 @@ DrawEngine的应用并不是直接让程序写完流程,因为渲染需要数据
 3. **编译说明**
 [编译说明](https://zpascal.net/%E7%BC%96%E8%AF%91ZAI1.4%E5%BC%80%E6%BA%90%E7%89%88%E6%9C%AC%E6%BA%90%E7%A0%81.pdf)
 
+# 编译AI-Demo后,运行程序需要下载数据
+
+详见 https://zpascal.net 直接[下载](http://zpascal.net/AI-Demo-Data.rar)
+
 # 建模入门与指引
 
 请阅读: [1.34老版本文档](https://zpascal.net/OLD_Index.html)
