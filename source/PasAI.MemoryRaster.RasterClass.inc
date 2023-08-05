@@ -5086,6 +5086,7 @@ begin
     m64.Position := 0;
     LoadFromStream(m64);
   except
+    Reset();
   end;
   DisposeObject(m64);
 end;

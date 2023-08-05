@@ -121,7 +121,7 @@ class function TPas_AI_TrainingTask.OpenFileTask(filename: SystemString; OnlyRea
 begin
   Result := TPas_AI_TrainingTask.Create;
   Result.DB_Stream := TCore_FileStream.Create(filename, if_(OnlyRead_, fmOpenRead or fmShareDenyNone, fmOpenReadWrite));
-  Result.DB_Engine := TObjectDataManagerOfCache.CreateAsStream(Result.DB_Stream, '', DBMarshal.ID, OnlyRead_, False, False);
+  Result.DB_Engine := TObjectDataManagerOfCache.CreateAsStream(Result.DB_Stream, filename, DBMarshal.ID, OnlyRead_, False, False);
   Result.LastWriteFileList := TPascalStringList.Create;
   Result.TaskLogStatus := TPascalStringList.Create;
 end;
@@ -130,7 +130,7 @@ class function TPas_AI_TrainingTask.CreateFileTask(filename: SystemString): TPas
 begin
   Result := TPas_AI_TrainingTask.Create;
   Result.DB_Stream := TCore_FileStream.Create(filename, fmCreate);
-  Result.DB_Engine := TObjectDataManagerOfCache.CreateAsStream(Result.DB_Stream, '', DBMarshal.ID, False, True, False);
+  Result.DB_Engine := TObjectDataManagerOfCache.CreateAsStream(Result.DB_Stream, filename, DBMarshal.ID, False, True, False);
   Result.LastWriteFileList := TPascalStringList.Create;
   Result.TaskLogStatus := TPascalStringList.Create;
 end;
@@ -140,7 +140,7 @@ begin
   Result := TPas_AI_TrainingTask.Create;
   Result.DB_Stream := TMS64.CustomCreate($FFFF);
   TMS64(Result.DB_Stream).LoadFromFile(filename);
-  Result.DB_Engine := TObjectDataManagerOfCache.CreateAsStream(Result.DB_Stream, '', DBMarshal.ID, False, False, False);
+  Result.DB_Engine := TObjectDataManagerOfCache.CreateAsStream(Result.DB_Stream, filename, DBMarshal.ID, False, False, False);
   Result.LastWriteFileList := TPascalStringList.Create;
   Result.TaskLogStatus := TPascalStringList.Create;
 end;
@@ -151,7 +151,7 @@ begin
   Result.DB_Stream := TMS64.CustomCreate($FFFF);
   TMS64(Result.DB_Stream).LoadFromStream(stream);
   Result.DB_Stream.Position := 0;
-  Result.DB_Engine := TObjectDataManagerOfCache.CreateAsStream(Result.DB_Stream, '', DBMarshal.ID, False, False, False);
+  Result.DB_Engine := TObjectDataManagerOfCache.CreateAsStream(Result.DB_Stream, 'Memory', DBMarshal.ID, False, False, False);
   Result.LastWriteFileList := TPascalStringList.Create;
   Result.TaskLogStatus := TPascalStringList.Create;
 end;
@@ -160,7 +160,7 @@ class function TPas_AI_TrainingTask.CreateMemoryTask: TPas_AI_TrainingTask;
 begin
   Result := TPas_AI_TrainingTask.Create;
   Result.DB_Stream := TMS64.CustomCreate($FFFF);
-  Result.DB_Engine := TObjectDataManagerOfCache.CreateAsStream($FF, Result.DB_Stream, '', DBMarshal.ID, False, True, False);
+  Result.DB_Engine := TObjectDataManagerOfCache.CreateAsStream($FF, Result.DB_Stream, 'Memory', DBMarshal.ID, False, True, False);
   Result.LastWriteFileList := TPascalStringList.Create;
   Result.TaskLogStatus := TPascalStringList.Create;
 end;
@@ -790,7 +790,7 @@ begin
     begin
       outputfile := param.GetDefaultValue_Str('syncfile', 'output' + C_Metric_Ext + C_Sync_Ext);
       if not Exists(outputfile) then
-          DoStatus('warning: no found trainer sync file: %s', [outputfile]);
+          DoStatus('warning: no found trainer "%s" sync file: %s', [DB_Engine.ObjectName, outputfile]);
 
       outputfile := param.GetDefaultValue_Str('output', 'output' + C_Metric_Ext);
       Result := Exists(outputfile);
@@ -801,7 +801,7 @@ begin
     begin
       outputfile := param.GetDefaultValue_Str('syncfile', 'output' + C_LMetric_Ext + C_Sync_Ext);
       if not Exists(outputfile) then
-          DoStatus('warning: no found trainer sync file: %s', [outputfile]);
+          DoStatus('warning: no found trainer "%s" sync file: %s', [DB_Engine.ObjectName, outputfile]);
 
       outputfile := param.GetDefaultValue_Str('output', 'output' + C_LMetric_Ext);
       Result := Exists(outputfile);
@@ -812,7 +812,7 @@ begin
     begin
       outputfile := param.GetDefaultValue_Str('syncfile', 'output' + C_MMOD6L_Ext + C_Sync_Ext);
       if not Exists(outputfile) then
-          DoStatus('warning: no found trainer sync file: %s', [outputfile]);
+          DoStatus('warning: no found trainer "%s" sync file: %s', [DB_Engine.ObjectName, outputfile]);
 
       outputfile := param.GetDefaultValue_Str('output', 'output' + C_MMOD6L_Ext);
       Result := Exists(outputfile);
@@ -823,7 +823,7 @@ begin
     begin
       outputfile := param.GetDefaultValue_Str('syncfile', 'output' + C_MMOD3L_Ext + C_Sync_Ext);
       if not Exists(outputfile) then
-          DoStatus('warning: no found trainer sync file: %s', [outputfile]);
+          DoStatus('warning: no found trainer "%s" sync file: %s', [DB_Engine.ObjectName, outputfile]);
 
       outputfile := param.GetDefaultValue_Str('output', 'output' + C_MMOD3L_Ext);
       Result := Exists(outputfile);
@@ -834,7 +834,7 @@ begin
     begin
       outputfile := param.GetDefaultValue_Str('syncfile', 'output' + C_RNIC_Ext + C_Sync_Ext);
       if not Exists(outputfile) then
-          DoStatus('warning: no found trainer sync file: %s', [outputfile]);
+          DoStatus('warning: no found trainer "%s" sync file: %s', [DB_Engine.ObjectName, outputfile]);
 
       outputfile := param.GetDefaultValue_Str('output', 'output' + C_RNIC_Ext);
       Result := Exists(outputfile);
@@ -845,7 +845,7 @@ begin
     begin
       outputfile := param.GetDefaultValue_Str('syncfile', 'output' + C_LRNIC_Ext + C_Sync_Ext);
       if not Exists(outputfile) then
-          DoStatus('warning: no found trainer sync file: %s', [outputfile]);
+          DoStatus('warning: no found trainer "%s" sync file: %s', [DB_Engine.ObjectName, outputfile]);
 
       outputfile := param.GetDefaultValue_Str('output', 'output' + C_LRNIC_Ext);
       Result := Exists(outputfile);
@@ -856,7 +856,7 @@ begin
     begin
       outputfile := param.GetDefaultValue_Str('syncfile', 'output' + C_GDCNIC_Ext + C_Sync_Ext);
       if not Exists(outputfile) then
-          DoStatus('warning: no found trainer sync file: %s', [outputfile]);
+          DoStatus('warning: no found trainer "%s" sync file: %s', [DB_Engine.ObjectName, outputfile]);
 
       outputfile := param.GetDefaultValue_Str('output', 'output' + C_GDCNIC_Ext);
       Result := Exists(outputfile);
@@ -867,7 +867,7 @@ begin
     begin
       outputfile := param.GetDefaultValue_Str('syncfile', 'output' + C_GNIC_Ext + C_Sync_Ext);
       if not Exists(outputfile) then
-          DoStatus('warning: no found trainer sync file: %s', [outputfile]);
+          DoStatus('warning: no found trainer "%s" sync file: %s', [DB_Engine.ObjectName, outputfile]);
 
       outputfile := param.GetDefaultValue_Str('output', 'output' + C_GNIC_Ext);
       Result := Exists(outputfile);
@@ -878,7 +878,7 @@ begin
     begin
       outputfile := param.GetDefaultValue_Str('syncfile', 'output' + C_SS_Ext + C_Sync_Ext);
       if not Exists(outputfile) then
-          DoStatus('warning: no found trainer sync file: %s', [outputfile]);
+          DoStatus('warning: no found trainer "%s" sync file: %s', [DB_Engine.ObjectName, outputfile]);
 
       outputfile := param.GetDefaultValue_Str('output', 'output' + C_SS_Ext);
       Result := Exists(outputfile);
@@ -889,7 +889,7 @@ begin
     begin
       outputfile := param.GetDefaultValue_Str('syncfile', 'output' + C_ZMetric_Ext + C_Sync_Ext);
       if not Exists(outputfile) then
-          DoStatus('warning: no found trainer sync file: %s', [outputfile]);
+          DoStatus('warning: no found trainer "%s" sync file: %s', [DB_Engine.ObjectName, outputfile]);
 
       outputfile := param.GetDefaultValue_Str('output', 'output' + C_ZMetric_Ext);
       Result := Exists(outputfile);
@@ -900,7 +900,7 @@ begin
     begin
       outputfile := param.GetDefaultValue_Str('syncfile', 'output' + C_DCGAN_Ext + C_Sync_Ext);
       if not Exists(outputfile) then
-          DoStatus('warning: no found trainer sync file: %s', [outputfile]);
+          DoStatus('warning: no found trainer "%s" sync file: %s', [DB_Engine.ObjectName, outputfile]);
 
       outputfile := param.GetDefaultValue_Str('output', 'output' + C_DCGAN_Ext);
       Result := Exists(outputfile);
@@ -911,7 +911,7 @@ begin
     begin
       outputfile := param.GetDefaultValue_Str('syncfile', 'output' + C_ZMetric_V2_Ext + C_Sync_Ext);
       if not Exists(outputfile) then
-          DoStatus('warning: no found trainer sync file: %s', [outputfile]);
+          DoStatus('warning: no found trainer "%s" sync file: %s', [DB_Engine.ObjectName, outputfile]);
 
       outputfile := param.GetDefaultValue_Str('output', 'output' + C_ZMetric_V2_Ext);
       Result := Exists(outputfile);

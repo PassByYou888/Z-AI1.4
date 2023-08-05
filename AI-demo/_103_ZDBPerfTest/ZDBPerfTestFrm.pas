@@ -78,13 +78,14 @@ begin
   TCompute.RunP_NP(procedure
     begin
       ZDB := TZDB2_Th_Queue.Create(
-        TZDB2_SpaceMode.smBigData,                         // 使用no cache读写模式
-        TFileStream.Create(FileEdit.Text, fmCreate),       // 数据库文件名
-        True,                                              // 自动释放stream
-        false,                                             // 只读
+        TZDB2_SpaceMode.smBigData, // 使用no cache读写模式
+        64 * 1024 * 1024, // cache
+        TFileStream.Create(FileEdit.Text, fmCreate), // 数据库文件名
+        True, // 自动释放stream
+        false, // 只读
         EStrToInt64(PhySpaceEdit.Text, 1024 * 1024 * 512), // 自动扩容步进尺寸
-        EStrToInt64(BlockSizeEdit.Text, $FFFF),            // 数据块尺寸，不能超过$FFFF
-        nil                                                // 数据编解码器，加密用
+        EStrToInt64(BlockSizeEdit.Text, $FFFF), // 数据块尺寸，不能超过$FFFF
+        nil // 数据编解码器，加密用
         );
       ZDB.Sync_Format_Custom_Space(
         EStrToInt64(PhySpaceEdit.Text, 1024 * 1024 * 512),

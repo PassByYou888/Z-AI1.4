@@ -334,6 +334,7 @@ uses
   PasAI.ZDB2.Thread.Pair_MD5_Stream,
   PasAI.ZDB2.Thread.Pair_String_Stream,
   PasAI.ZDB2.Thread,
+  PasAI.ZDB2.Thread.LargeData,
   PasAI.ZDB2.Thread.Queue;
 
 begin

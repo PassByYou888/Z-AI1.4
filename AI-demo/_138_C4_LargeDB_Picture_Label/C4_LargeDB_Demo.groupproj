@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{1CAACB1E-D52E-4F0D-BF98-BC29F9CB2BFC}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="_138_C4_LargeDB_Service.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="_139_C4_LargeDB_Import_Tool.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="_138_C4_LargeDB_Service">
+        <MSBuild Projects="_138_C4_LargeDB_Service.dproj"/>
+    </Target>
+    <Target Name="_138_C4_LargeDB_Service:Clean">
+        <MSBuild Projects="_138_C4_LargeDB_Service.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="_138_C4_LargeDB_Service:Make">
+        <MSBuild Projects="_138_C4_LargeDB_Service.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="_139_C4_LargeDB_Import_Tool">
+        <MSBuild Projects="_139_C4_LargeDB_Import_Tool.dproj"/>
+    </Target>
+    <Target Name="_139_C4_LargeDB_Import_Tool:Clean">
+        <MSBuild Projects="_139_C4_LargeDB_Import_Tool.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="_139_C4_LargeDB_Import_Tool:Make">
+        <MSBuild Projects="_139_C4_LargeDB_Import_Tool.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="_138_C4_LargeDB_Service;_139_C4_LargeDB_Import_Tool"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="_138_C4_LargeDB_Service:Clean;_139_C4_LargeDB_Import_Tool:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="_138_C4_LargeDB_Service:Make;_139_C4_LargeDB_Import_Tool:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

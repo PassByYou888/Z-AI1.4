@@ -1629,7 +1629,7 @@ type
       3reedscott@umich.edu
       4arabinovich@magicleap.com
 
-      create by qq600585, test passed. 2019/4
+      test passed. 2019/4
     *)
     { Going Deeper with Convolutions net Image Classifier training(gpu), max classifier 10000, direct input without XML swap dataset. }
     class function Init_GDCNIC_Train_Parameter(train_sync_file, train_output: U_String): PGDCNIC_Train_Parameter;
@@ -1662,7 +1662,7 @@ type
       Proceedings of the IEEE 86.11 (1998): 2278-2324.
 
       im extracting CNN net struct part, not text recognition!!
-      create by qq600585, test passed. 2019/4
+      test passed. 2019/4
     *)
     { Gradient-based net Image Classifier training(gpu), max classifier 10000, direct input without XML swap dataset. }
     class function Init_GNIC_Train_Parameter(train_sync_file, train_output: U_String): PGNIC_Train_Parameter;
@@ -6129,6 +6129,8 @@ begin
   DisposeObject(ResultValues);
   DisposeObject(test_imgList);
   DisposeObject(test_imgMatrix);
+
+  DoStatus('RunTrainingTask return: %s', [umlBoolToStr(Result).Text]);
 end;
 
 function RunLargeScaleTrainingTask(
@@ -6581,6 +6583,7 @@ begin
     DisposeObject(StepData);
   except
   end;
+  DoStatus('RunLargeScaleTrainingTask return: %s', [umlBoolToStr(Result).Text]);
 end;
 
 constructor TOneStepList.Create;
@@ -7774,9 +7777,9 @@ end;
 function TPas_AI_Core_API.GetVersionTitle: TPascalString;
 begin
   if VerMode in [7, 8] then
-      Result := PFormat('%d.%d %s Update4', [MajorVer, MinorVer, GetVersionName().Text])
+      Result := PFormat('%d.%d %s Update9', [MajorVer, MinorVer, GetVersionName().Text])
   else
-      Result := PFormat('%d.%d %s %d Update4', [MajorVer, MinorVer, GetVersionName().Text, VerID]);
+      Result := PFormat('%d.%d %s %d Update9', [MajorVer, MinorVer, GetVersionName().Text, VerID]);
 end;
 
 function TPas_AI_Core_API.GetVersionInfo: TPascalString;

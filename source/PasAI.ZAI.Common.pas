@@ -728,6 +728,10 @@ var
   { toolchain install directory. }
   AI_InstallDirectory: U_String;
 
+  { depend info }
+  AI_Depend_Name: U_String;
+  AI_Depend_Architecture: U_String;
+
   { AI configure ready ok }
   AI_Configure_ReadyDone: Boolean;
 
@@ -786,6 +790,14 @@ begin
 
   { toolchain install directory. }
   AI_InstallDirectory := AI_Work_Path;
+
+  { depend info }
+  AI_Depend_Name := '';
+  case CurrentPlatform of
+    epWin32: AI_Depend_Architecture := 'x86';
+    epWin64: AI_Depend_Architecture := 'x64';
+    else AI_Depend_Architecture := 'illegal';
+  end;
 
   if IsMobile then
       AI_CFG_FILE := C_AI_Conf
@@ -882,6 +894,9 @@ begin
 
   AI_InstallDirectory := ini.GetDefaultValue('Setup', 'InstallDirectory', AI_InstallDirectory);
 
+  AI_Depend_Name := ini.GetDefaultValue('Depend', 'Name', AI_Depend_Name);
+  AI_Depend_Architecture := ini.GetDefaultValue('Depend', 'Architecture', AI_Depend_Architecture);
+
   AI_Engine_Library := r_ai('Engine', AI_Engine_Library);
   AI_Engine_Tech2022_Library := r_ai('Engine_Tech2022', AI_Engine_Tech2022_Library);
 
@@ -923,6 +938,8 @@ begin
 
   ini.SetDefaultValue('FileIO', 'SearchDirectory', AI_SearchDirectory);
   ini.SetDefaultValue('Setup', 'InstallDirectory', AI_InstallDirectory);
+  ini.SetDefaultValue('Depend', 'Name', AI_Depend_Name);
+  ini.SetDefaultValue('Depend', 'Architecture', AI_Depend_Architecture);
 
   w_ai('Engine', AI_Engine_Library);
   w_ai('Engine_Tech2022', AI_Engine_Tech2022_Library);

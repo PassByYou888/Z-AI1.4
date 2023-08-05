@@ -9,8 +9,8 @@
         <Filename Value="fpc_compiler_test.lpr"/>
         <IsPartOfProject Value="True"/>
         <IsVisibleTab Value="True"/>
-        <TopLine Value="302"/>
-        <CursorPos X="41" Y="321"/>
+        <TopLine Value="224"/>
+        <CursorPos X="63" Y="237"/>
         <UsageCount Value="20"/>
         <Loaded Value="True"/>
       </Unit>
@@ -2169,9 +2169,7 @@
         <Filename Value="..\source\PasAI.Nav.Pass.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
+        <CursorPos X="2" Y="6"/>
         <UsageCount Value="20"/>
       </Unit>
       <Unit>
@@ -3015,7 +3013,7 @@
         <UsageCount Value="20"/>
       </Unit>
     </Units>
-    <JumpHistory HistoryIndex="7">
+    <JumpHistory HistoryIndex="12">
       <Position>
         <Filename Value="fpc_compiler_test.lpr"/>
         <Caret Line="61" TopLine="58"/>
@@ -3047,6 +3045,25 @@
       <Position>
         <Filename Value="fpc_compiler_test.lpr"/>
         <Caret Line="322" Column="62" TopLine="302"/>
+      </Position>
+      <Position>
+        <Filename Value="fpc_compiler_test.lpr"/>
+        <Caret Line="212" TopLine="197"/>
+      </Position>
+      <Position>
+        <Filename Value="fpc_compiler_test.lpr"/>
+        <Caret Line="119" TopLine="96"/>
+      </Position>
+      <Position>
+        <Filename Value="fpc_compiler_test.lpr"/>
+      </Position>
+      <Position>
+        <Filename Value="fpc_compiler_test.lpr"/>
+        <Caret Line="337" Column="30" TopLine="302"/>
+      </Position>
+      <Position>
+        <Filename Value="fpc_compiler_test.lpr"/>
+        <Caret Line="250" Column="58" TopLine="224"/>
       </Position>
     </JumpHistory>
     <RunParams>

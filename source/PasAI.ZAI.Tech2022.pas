@@ -845,9 +845,9 @@ end;
 function TPas_AI_TECH_2022_Core_API.GetVersionTitle: TPascalString;
 begin
   if VerMode in [7, 8] then
-      Result := PFormat('%d.%d %s Update3', [MajorVer, MinorVer, GetVersionName().Text])
+      Result := PFormat('%d.%d %s Update9', [MajorVer, MinorVer, GetVersionName().Text])
   else
-      Result := PFormat('%d.%d %s %d Update3', [MajorVer, MinorVer, GetVersionName().Text, VerID]);
+      Result := PFormat('%d.%d %s %d Update9', [MajorVer, MinorVer, GetVersionName().Text, VerID]);
 end;
 
 function TPas_AI_TECH_2022_Core_API.GetVersionInfo: TPascalString;
@@ -3743,7 +3743,7 @@ begin
 
   param.SetDefaultValue('Learn_Jitter', True);
   param.SetDefaultValue('Learn_Jitter_Num', 50);
-  param.SetDefaultValue('Learn_Thread_Num', 4);
+  param.SetDefaultValue('Learn_Thread_Num', 10);
   param.SetDefaultValue('Learn_Include_Prepare_Raster', True);
 
   param.ExportAsStrings(output);
@@ -3782,7 +3782,7 @@ begin
 
   param.SetDefaultValue('Learn_Jitter', True);
   param.SetDefaultValue('Learn_Jitter_Num', 50);
-  param.SetDefaultValue('Learn_Thread_Num', 4);
+  param.SetDefaultValue('Learn_Thread_Num', 10);
   param.SetDefaultValue('Learn_Include_Prepare_Raster', True);
 
   param.ExportAsStrings(output);
@@ -4023,16 +4023,16 @@ begin
                       if umlMultipleMatch('*' + C_ImageMatrix_Ext, inputfile1) then
                           AI.ZMetric_V2_Save_To_Learn_DNN_Thread(
                           param.GetDefaultValue('Learn_Jitter', True),
-                          param.GetDefaultValue('Learn_Jitter_Num', 10),
-                          param.GetDefaultValue('Learn_Thread_Num', 2),
+                          param.GetDefaultValue('Learn_Jitter_Num', 50),
+                          param.GetDefaultValue('Learn_Thread_Num', 10),
                           outputstream,
                           inputImgMatrix,
                           LearnEng)
                       else
                           AI.ZMetric_V2_Save_To_Learn_DNN_Thread(
                           param.GetDefaultValue('Learn_Jitter', True),
-                          param.GetDefaultValue('Learn_Jitter_Num', 10),
-                          param.GetDefaultValue('Learn_Thread_Num', 2),
+                          param.GetDefaultValue('Learn_Jitter_Num', 50),
+                          param.GetDefaultValue('Learn_Thread_Num', 10),
                           outputstream,
                           inputImgList,
                           LearnEng);
@@ -4079,6 +4079,7 @@ begin
   DisposeObject(inputImgList);
   DisposeObject(inputImgMatrix);
   DisposeObject(ResultValues);
+  DoStatus('AI_TECH_2022_RunTrainingTask return: %s', [umlBoolToStr(Result).Text]);
 end;
 
 function AI_TECH_2022_RunLargeScaleTrainingTask(
@@ -4187,8 +4188,8 @@ begin
             m64.LoadFromFile(OutputModel);
             AI.ZMetric_V2_Save_To_Learn_DNN_Thread(
               param.GetDefaultValue('Learn_Jitter', True),
-              param.GetDefaultValue('Learn_Jitter_Num', 10),
-              param.GetDefaultValue('Learn_Thread_Num', 2),
+              param.GetDefaultValue('Learn_Jitter_Num', 50),
+              param.GetDefaultValue('Learn_Thread_Num', 10),
               m64,
               RSeri,
               train_Img_Matrix,
@@ -4237,6 +4238,7 @@ begin
     umlDeleteFile(Training_RasterSerializedFile);
   except
   end;
+  DoStatus('AI_TECH_2022_RunLargeScaleTrainingTask return: %s', [umlBoolToStr(Result).Text]);
 end;
 
 initialization

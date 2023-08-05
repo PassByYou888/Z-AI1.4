@@ -112,7 +112,7 @@ type
 
   TZDB2_FFMPEG_Data_Th_Engine = class(TZDB2_Th_Engine)
   public
-    constructor Create(Owner_: TZDB2_Th_Engine_Marshal);
+    constructor Create(Owner_: TZDB2_Th_Engine_Marshal); override;
     destructor Destroy; override;
   end;
 
@@ -682,7 +682,7 @@ end;
 function TZDB2_FFMPEG_Data_Marshal.BuildMemory(): TZDB2_FFMPEG_Data_Th_Engine;
 begin
   Result := TZDB2_FFMPEG_Data_Th_Engine.Create(ZDB2_Eng);
-  Result.Mode := smBigData;
+  Result.Cache_Mode := smBigData;
   Result.Database_File := '';
   Result.OnlyRead := False;
   Result.Cipher_Security := TCipherSecurity.csNone;
@@ -692,7 +692,7 @@ end;
 function TZDB2_FFMPEG_Data_Marshal.BuildOrOpen(FileName_: U_String; OnlyRead_, Encrypt_: Boolean): TZDB2_FFMPEG_Data_Th_Engine;
 begin
   Result := TZDB2_FFMPEG_Data_Th_Engine.Create(ZDB2_Eng);
-  Result.Mode := smNormal;
+  Result.Cache_Mode := smNormal;
   Result.Database_File := FileName_;
   Result.OnlyRead := OnlyRead_;
 
@@ -712,7 +712,7 @@ end;
 function TZDB2_FFMPEG_Data_Marshal.BuildOrOpen(FileName_: U_String; OnlyRead_, Encrypt_: Boolean; cfg: THashStringList): TZDB2_FFMPEG_Data_Th_Engine;
 begin
   Result := TZDB2_FFMPEG_Data_Th_Engine.Create(ZDB2_Eng);
-  Result.Mode := smNormal;
+  Result.Cache_Mode := smNormal;
   Result.Database_File := FileName_;
   Result.OnlyRead := OnlyRead_;
   if cfg <> nil then
@@ -1081,3 +1081,4 @@ begin
 end;
 
 end.
+

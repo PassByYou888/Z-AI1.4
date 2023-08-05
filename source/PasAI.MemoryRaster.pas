@@ -1728,6 +1728,7 @@ type
 
 
 function Wait_SystemFont_Init: TFontPasAI_Raster;
+procedure Raster_Global_Parallel(parallel_: Boolean);
 
 function ClampInt(const Value, IMin, IMax: Integer): Integer;
 function ClampByte3(const Value, IMin, IMax: Byte): Byte;
@@ -2274,6 +2275,15 @@ function IsRectEmpty_(const R: TRect): Boolean; forward;
 {$I PasAI.MemoryRaster.MorphologySegmentation.inc}
 {$I PasAI.MemoryRaster.MorphologyRCLines.inc}
 
+
+procedure Raster_Global_Parallel(parallel_: Boolean);
+begin
+  TMPasAI_Raster.Parallel := parallel_;
+  TPasAI_RasterVertex.Parallel := parallel_;
+  TMorphomatics.Parallel := parallel_;
+  TMorphologyBinaryzation.Parallel := parallel_;
+end;
+
 {$REGION 'Intf'}
 
 
@@ -2302,7 +2312,11 @@ begin
       m64.CopyFrom(stream, stream.Size);
   m64.Position := 0;
 
-  Result.LoadFromStream(m64);
+  try
+      Result.LoadFromStream(m64);
+  except
+      Result.Reset();
+  end;
 
   disposeObject(m64);
 end;
