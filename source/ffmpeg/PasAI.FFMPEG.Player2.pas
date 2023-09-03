@@ -131,14 +131,20 @@ type
     FVideoTrans: TFFMPEG_Player_Video_Transform;
     FAudioTrans: TFFMPEG_Audio_Transform;
     FRealTimeMode: Boolean;
+    FFirst_VF_PTS, FFirst_AF_PTS: Double;
     FVideo_Codec_Stream, FAudio_Codec_Stream: PCodec_Stream_;
+    FSerialized_Tool: TPasAI_RasterSerialized;
+    FAuto_Write_Serialized: Boolean;
     procedure SetRealTimeMode(const Value: Boolean);
     procedure Do_Internal_SyncAudio_(time_: Double);
+    procedure Set_Serialized_Tool(const Value: TPasAI_RasterSerialized);
+    procedure Set_Auto_Write_Serialized(const Value: Boolean);
   public
     Player: TFFMPEG_Player_Extract_Tool;
     Raster_Frag_Order: TRaster_Frag_Order;
     Audio_Frag_Order: TAudio_Frag_Order;
     Last_Process_Is_Video, Last_Process_Is_Audio: Boolean;
+    Process_Video_Num, Process_Audio_Num: Int64;
     constructor Create(Player_: TFFMPEG_Player_Extract_Tool; Width_, Height_: TGeoFloat);
     destructor Destroy; override;
     procedure Process(Input: PCodec_Stream_); overload;
@@ -149,6 +155,10 @@ type
     property TrackerSeedTime: TTimeTick read FTrackerSeedTime;
     property VideoTrans: TFFMPEG_Player_Video_Transform read FVideoTrans;
     property AudioTrans: TFFMPEG_Audio_Transform read FAudioTrans;
+    // rasterization Serialized_Tool.
+    property Serialized: TPasAI_RasterSerialized read FSerialized_Tool write Set_Serialized_Tool;
+    property Serialized_Tool: TPasAI_RasterSerialized read FSerialized_Tool write Set_Serialized_Tool;
+    property Auto_Write_Serialized: Boolean read FAuto_Write_Serialized write Set_Auto_Write_Serialized;
   end;
 
   TDecode_State = (dsVideo, dsAudio, dsIgnore, dsError);
@@ -679,11 +689,11 @@ var
 begin
   while Audio_Frag_Order.Num > 1 do
     begin
-      f1 := Audio_Frag_Order.Current^.Data.PTS * FAudio_Codec_Stream^.TB;
-      f2 := Audio_Frag_Order.Current^.Next^.Data.PTS * FAudio_Codec_Stream^.TB;
-      if (time_ >= f1) then
+      f1 := (Audio_Frag_Order.Current^.Data.PTS - FFirst_AF_PTS) * FAudio_Codec_Stream^.TB;
+      f2 := (Audio_Frag_Order.Current^.Next^.Data.PTS - FFirst_AF_PTS) * FAudio_Codec_Stream^.TB;
+      if (time_ >= (f1 - FSyncAccuracy)) then
         begin
-          if (time_ <= f2) then
+          if (time_ <= (f2 + FSyncAccuracy)) then
             begin
               FAudioTrans.Clear;
               if not FAudioTrans.isPlaying then
@@ -706,6 +716,16 @@ begin
     end;
 end;
 
+procedure TFFMPEG_Player_Sync_Tool.Set_Serialized_Tool(const Value: TPasAI_RasterSerialized);
+begin
+  FSerialized_Tool := Value;
+end;
+
+procedure TFFMPEG_Player_Sync_Tool.Set_Auto_Write_Serialized(const Value: Boolean);
+begin
+  FAuto_Write_Serialized := Value;
+end;
+
 constructor TFFMPEG_Player_Sync_Tool.Create(Player_: TFFMPEG_Player_Extract_Tool; Width_, Height_: TGeoFloat);
 begin
   inherited Create;
@@ -714,15 +734,21 @@ begin
   FAudio_Codec_Stream := Player.Current_Audio;
   FTrackerSeedTime := 0;
   FAudioDelay := 0;
-  FSyncAccuracy := 0.001;
+  FSyncAccuracy := 0.1;
   Raster_Frag_Order := TRaster_Frag_Order.Create;
   Audio_Frag_Order := TAudio_Frag_Order.Create;
   FVideoTrans := TFFMPEG_Player_Video_Transform.Create(Player, Width_, Height_);
   FAudioTrans := TFFMPEG_Audio_Transform.Create(Player);
   FAudioTrans.Prepare;
+  FFirst_VF_PTS := 0;
+  FFirst_AF_PTS := 0;
   FRealTimeMode := False;
+  FSerialized_Tool := nil;
+  FAuto_Write_Serialized := False;
   Last_Process_Is_Video := False;
   Last_Process_Is_Audio := False;
+  Process_Video_Num := 0;
+  Process_Audio_Num := 0;
 end;
 
 destructor TFFMPEG_Player_Sync_Tool.Destroy;
@@ -741,16 +767,19 @@ var
 begin
   Last_Process_Is_Video := False;
   Last_Process_Is_Audio := False;
-  if FTrackerSeedTime = 0 then
-      FTrackerSeedTime := GetTimeTick();
 
   if FVideoTrans.Ready and Input^.IsVideo and (Input = FVideo_Codec_Stream) then
     begin
       VF.PTS := Input^.Frame^.PTS;
       VF.VideoData := NewPasAI_Raster();
       FVideoTrans.Transform(Input, VF.VideoData, True);
+      if FAuto_Write_Serialized and (FSerialized_Tool <> nil) then
+          VF.VideoData.SerializedAndRecycleMemory(FSerialized_Tool);
       Raster_Frag_Order.Push(VF);
+      if Process_Video_Num = 0 then
+          FFirst_VF_PTS := Input^.Frame^.PTS;
       Last_Process_Is_Video := True;
+      inc(Process_Video_Num);
     end
   else if FAudioTrans.Ready and Input^.IsAudio and (Input = FAudio_Codec_Stream) then
     begin
@@ -760,8 +789,13 @@ begin
       AF.AudioData := TMem64.Create;
       FAudioTrans.TransformTo(Input, AF.AudioData);
       Audio_Frag_Order.Push(AF);
+      if Process_Audio_Num = 0 then
+          FFirst_AF_PTS := Input^.Frame^.PTS;
       Last_Process_Is_Audio := True;
+      inc(Process_Audio_Num);
     end;
+  if (FTrackerSeedTime = 0) and (Process_Video_Num + Process_Audio_Num > 3) then
+      FTrackerSeedTime := GetTimeTick();
 end;
 
 procedure TFFMPEG_Player_Sync_Tool.Set_Codec_Stream(Codec_Stream_: PCodec_Stream_);
@@ -822,9 +856,9 @@ begin
 
   curr := (GetTimeTick - FTrackerSeedTime) * 0.001;
 
-  f1 := Raster_Frag_Order.Current^.Data.PTS * FVideo_Codec_Stream^.TB;
+  f1 := (Raster_Frag_Order.Current^.Data.PTS - FFirst_VF_PTS) * FVideo_Codec_Stream^.TB;
   if Raster_Frag_Order.Num > 1 then
-      f2 := Raster_Frag_Order.Current^.Next^.Data.PTS * FVideo_Codec_Stream^.TB
+      f2 := (Raster_Frag_Order.Current^.Next^.Data.PTS - FFirst_VF_PTS) * FVideo_Codec_Stream^.TB
   else
       f2 := f1;
 
@@ -887,9 +921,11 @@ begin
 
   // Open video URL
   try
-    tmp := TPascalString(umlIntToStr(16 * 1024 * 1024)).BuildPlatformPChar;
+    tmp := TPascalString(umlIntToStr(8 * 1024 * 1024)).BuildPlatformPChar;
     av_dict_set(@AV_Options, 'buffer_size', tmp, 0);
     av_dict_set(@AV_Options, 'stimeout', '6000000', 0);
+    av_dict_set(@AV_Options, 'max_delay', '50000000', 0);
+    av_dict_set(@AV_Options, 'thread_queue_size', '1024', 0);
     if RTSP_Used_TCP_ then
       begin
         av_dict_set(@AV_Options, 'rtsp_flags', '+prefer_tcp', 0);
@@ -898,8 +934,8 @@ begin
     else
       begin
         av_dict_set(@AV_Options, 'rtsp_transport', 'udp', 0);
-        av_dict_set(@AV_Options, 'min_port', '10000', 0);
-        av_dict_set(@AV_Options, 'max_port', '65000', 0);
+        av_dict_set(@AV_Options, 'min_port', '8000', 0);
+        av_dict_set(@AV_Options, 'max_port', '20000', 0);
       end;
     TPascalString.FreePlatformPChar(tmp);
 

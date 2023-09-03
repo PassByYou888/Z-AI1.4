@@ -720,9 +720,11 @@ begin
 
   // Open video file
   try
-    tmp := TPascalString(umlIntToStr(128 * 1024 * 1024)).BuildPlatformPChar;
+    tmp := TPascalString(umlIntToStr(8 * 1024 * 1024)).BuildPlatformPChar;
     av_dict_set(@AV_Options, 'buffer_size', tmp, 0);
     av_dict_set(@AV_Options, 'stimeout', '6000000', 0);
+    av_dict_set(@AV_Options, 'max_delay', '50000000', 0);
+    av_dict_set(@AV_Options, 'thread_queue_size', '1024', 0);
     av_dict_set(@AV_Options, 'rtsp_flags', '+prefer_tcp', 0);
     av_dict_set(@AV_Options, 'rtsp_transport', '+tcp', 0);
     TPascalString.FreePlatformPChar(tmp);

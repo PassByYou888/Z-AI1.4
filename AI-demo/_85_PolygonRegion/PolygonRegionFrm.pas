@@ -30,7 +30,7 @@ type
     ai: TPas_AI;
     tracker_hnd: TTracker_Handle;
     polygonList: TDeflectionPolygonListRenderer;
-    moveingPath: TVec2List;
+    moveingPath: TV2L;
     InRegion, OutRegion: Boolean;
     procedure DoStatusMethod(Text_: SystemString; const ID: Integer);
   public
@@ -94,7 +94,7 @@ begin
   bk := NewPasAI_Raster();
   bk.SetSize(128, 128);
   FillBlackGrayBackgroundTexture(bk, 32, RColor(0, 0, 0), RColorF(0.3, 0.3, 0.3), RColorF(0.2, 0.2, 0.2));
-  moveingPath := TVec2List.Create;
+  moveingPath := TV2L.Create;
   mpeg_reader := TFFMPEG_Reader.Create(WhereFileFromConfigure('finder.h264'));
   mpeg_raster := NewPasAI_Raster();
   ai := TPas_AI.OpenEngine();

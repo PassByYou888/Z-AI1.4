@@ -1335,13 +1335,13 @@ type
     function SP_Open_Stream(train_file: SystemString): TSP_Handle; overload;
     function SP_Close(var hnd: TSP_Handle): Boolean;
     function SP_Process(hnd: TSP_Handle; Raster: TMPasAI_Raster; const AI_Rect: TPas_AI_Rect; const max_AI_Point: Integer): TSP_Desc; overload;
-    function SP_Process_Vec2List(hnd: TSP_Handle; Raster: TMPasAI_Raster; const R: TRectV2): TVec2List; overload;
+    function SP_Process_Vec2List(hnd: TSP_Handle; Raster: TMPasAI_Raster; const R: TRectV2): TV2L; overload;
     function SP_Process_Vec2(hnd: TSP_Handle; Raster: TMPasAI_Raster; const R: TRectV2): TArrayVec2; overload;
     function SP_Process_Vec2(hnd: TSP_Handle; Raster: TMPasAI_Raster; const R: TPas_AI_Rect): TArrayVec2; overload;
     function SP_Process_Vec2(hnd: TSP_Handle; Raster: TMPasAI_Raster; const R: TOD_Rect): TArrayVec2; overload;
     function SP_Process_Face(Raster: TMPasAI_Raster; const R: TRectV2): TArrayVec2;
     function SP_ProcessRGB(hnd: TSP_Handle; rgb_img: TRGB_Image_Handle; const AI_Rect: TPas_AI_Rect; const max_AI_Point: Integer): TSP_Desc; overload;
-    function SP_ProcessRGB_Vec2List(hnd: TSP_Handle; rgb_img: TRGB_Image_Handle; const R: TRectV2): TVec2List; overload;
+    function SP_ProcessRGB_Vec2List(hnd: TSP_Handle; rgb_img: TRGB_Image_Handle; const R: TRectV2): TV2L; overload;
     function SP_ProcessRGB_Vec2(hnd: TSP_Handle; rgb_img: TRGB_Image_Handle; const R: TRectV2): TArrayVec2; overload;
     function SP_ProcessRGB_Vec2(hnd: TSP_Handle; rgb_img: TRGB_Image_Handle; const R: TPas_AI_Rect): TArrayVec2; overload;
     function SP_ProcessRGB_Vec2(hnd: TSP_Handle; rgb_img: TRGB_Image_Handle; const R: TOD_Rect): TArrayVec2; overload;
@@ -2791,7 +2791,7 @@ procedure Filter_OD_Desc(var desc: TOD_Desc);
 procedure Filter_MMOD_Desc(var desc: TMMOD_Desc);
 
 { sp vector }
-procedure SPToVec(V: TSP_Desc; L: TVec2List); overload;
+procedure SPToVec(V: TSP_Desc; L: TV2L); overload;
 function GetSPBound(desc: TSP_Desc; endge_threshold: TGeoFloat): TRectV2;
 procedure DrawSPLine(sp_desc: TSP_Desc; bp, ep: Integer; closeLine: Boolean; color: TDEColor; d: TDrawEngine); overload;
 procedure DrawFaceSP(sp_desc: TSP_Desc; color: TDEColor; d: TDrawEngine); overload;
@@ -2919,8 +2919,6 @@ var
 
 procedure API_OnOneStep(Sender: PAI_Core_API; one_step_calls: UInt64; average_loss, learning_rate: Double); stdcall;
 var
-  L: TMR_List;
-  i: Integer;
   recycle_mem: Int64;
 begin
   try
@@ -2931,14 +2929,20 @@ begin
         begin
           // cache memory optimize
           Sender^.RasterSerialized.Critical.Acquire;
-          L := Sender^.RasterSerialized.ReadHistory;
-          recycle_mem := 0;
-          for i := L.Count - 1 downto 0 do
-            if GetTimeTick() - L[i].ActiveTimeTick() > LargeScaleTrainingMemoryRecycleTime then
-              begin
-                inc(recycle_mem, L[i].RecycleMemory()); // recycle
-                L.Delete(i);
-              end;
+          Sender^.RasterSerialized.Read_History_Pool.Free_Recycle_Pool;
+          if Sender^.RasterSerialized.Read_History_Pool.Num > 0 then
+            with Sender^.RasterSerialized.Read_History_Pool.Repeat_ do
+              repeat
+                if GetTimeTick() - Queue^.data.ActiveTimeTick() > LargeScaleTrainingMemoryRecycleTime then
+                  begin
+                    inc(recycle_mem, Queue^.data.RecycleMemory()); // recycle
+                    Queue^.data.Serialized_Read_History_Ptr := nil;
+                    Sender^.RasterSerialized.Read_History_Pool.Push_To_Recycle_Pool(Queue);
+                  end
+                else
+                    break; // optimized
+              until not Next;
+          Sender^.RasterSerialized.Read_History_Pool.Free_Recycle_Pool;
           Sender^.RasterSerialized.Critical.Release;
           Sender^.SerializedTime := GetTimeTick();
         end;
@@ -3188,7 +3192,7 @@ begin
             begin
               LockObject(p^.L);
               try
-                  p^.L.AddMemory(output, detDef.Token);
+                  p^.L.AddMemory(output, detDef.Token, PFormat('%d,%d,%d', [p^.detDef.Owner.Owner.ID, p^.detDef.Owner.ID, p^.detDef.Owner.DetectorDefineList.IndexOf(p^.detDef)]));
               except
               end;
               UnLockObject(p^.L);
@@ -3200,7 +3204,7 @@ begin
       detDef := p^.detDef;
       LockObject(p^.L);
       try
-          p^.L.AddMemory(output, detDef.Token);
+          p^.L.AddMemory(output, detDef.Token, PFormat('%d,%d,%d', [p^.detDef.Owner.Owner.ID, p^.detDef.Owner.ID, p^.detDef.Owner.DetectorDefineList.IndexOf(p^.detDef)]));
       except
       end;
       UnLockObject(p^.L);
@@ -3228,7 +3232,7 @@ begin
           if detDef.Token.Len > 0 then
             begin
               LockObject(p^.L);
-              p^.L.AddMemory(output, detDef.Token);
+              p^.L.AddMemory(output, detDef.Token, PFormat('%d,%d,%d', [p^.detDef.Owner.Owner.ID, p^.detDef.Owner.ID, p^.detDef.Owner.DetectorDefineList.IndexOf(p^.detDef)]));
               UnLockObject(p^.L);
             end;
         end;
@@ -3237,7 +3241,7 @@ begin
     begin
       detDef := p^.detDef;
       LockObject(p^.L);
-      p^.L.AddMemory(output, detDef.Token);
+      p^.L.AddMemory(output, detDef.Token, PFormat('%d,%d,%d', [p^.detDef.Owner.Owner.ID, p^.detDef.Owner.ID, p^.detDef.Owner.DetectorDefineList.IndexOf(p^.detDef)]));
       UnLockObject(p^.L);
     end;
   Dispose(p);
@@ -3263,7 +3267,7 @@ begin
           if detDef.Token.Len > 0 then
             begin
               LockObject(p^.L);
-              p^.L.AddMemory(output, detDef.Token);
+              p^.L.AddMemory(output, detDef.Token, PFormat('%d,%d,%d', [p^.detDef.Owner.Owner.ID, p^.detDef.Owner.ID, p^.detDef.Owner.DetectorDefineList.IndexOf(p^.detDef)]));
               UnLockObject(p^.L);
             end;
         end;
@@ -3272,7 +3276,7 @@ begin
     begin
       detDef := p^.detDef;
       LockObject(p^.L);
-      p^.L.AddMemory(output, detDef.Token);
+      p^.L.AddMemory(output, detDef.Token, PFormat('%d,%d,%d', [p^.detDef.Owner.Owner.ID, p^.detDef.Owner.ID, p^.detDef.Owner.DetectorDefineList.IndexOf(p^.detDef)]));
       UnLockObject(p^.L);
     end;
   Dispose(p);
@@ -3362,11 +3366,11 @@ begin
 
                 FAI_EntryAPI^.LibraryFile := libFile;
                 FAI_EntryAPI^.LoadLibraryTime := umlNow();
-                FAI_EntryAPI^.OneStepList := TOneStepList.Create;
-                FAI_EntryAPI^.Log := TPas_AI_LogList.Create;
+                FAI_EntryAPI^.OneStepList := nil;
+                FAI_EntryAPI^.Log := nil;
                 FAI_EntryAPI^.RasterSerialized := nil;
                 FAI_EntryAPI^.SerializedTime := GetTimeTick();
-                FAI_EntryAPI^.Critical := TCritical.Create;
+                FAI_EntryAPI^.Critical := nil;
                 FAI_EntryAPI^.Enabled_Trainer_Warning := True;
 
                 FAI_EntryAPI^.MorphExpIntf := TMorphExpIntf.Create(FAI_EntryAPI);
@@ -3382,14 +3386,14 @@ begin
                         begin
                           DoStatus('illegal License key for %s', [libFile]);
                           FAI_EntryAPI^.LibraryFile := '';
-                          DisposeObject(FAI_EntryAPI^.OneStepList);
-                          DisposeObject(FAI_EntryAPI^.Log);
-                          DisposeObject(FAI_EntryAPI^.Critical);
                           Dispose(FAI_EntryAPI);
                           FreeExtLib(libFile);
                         end
                       else
                         begin
+                          FAI_EntryAPI^.OneStepList := TOneStepList.Create;
+                          FAI_EntryAPI^.Log := TPas_AI_LogList.Create;
+                          FAI_EntryAPI^.Critical := TCritical.Create;
                           AI_Entry_Cache.Add(libFile, FAI_EntryAPI, False);
                           FAI_EntryAPI^.MorphExpIntf.MorphologyExpression_RegData := RegMorphExpExternalAPI(nil, {$IFDEF FPC}@{$ENDIF FPC}FAI_EntryAPI^.MorphExpIntf.RegMorphExpExternalAPI, nil);
                           DoStatus(FAI_EntryAPI^.GetVersionInfo());
@@ -3400,18 +3404,12 @@ begin
                     begin
                       DoStatus('not supported. AI engine: %s', [umlGetFileName(libFile).Text]);
                       FAI_EntryAPI^.LibraryFile := '';
-                      DisposeObject(FAI_EntryAPI^.OneStepList);
-                      DisposeObject(FAI_EntryAPI^.Log);
-                      DisposeObject(FAI_EntryAPI^.Critical);
                       Dispose(FAI_EntryAPI);
                       FreeExtLib(libFile);
                     end;
                 except
                   DoStatus('AI engine init failed: "%s"', [umlGetFileName(libFile).Text]);
                   FAI_EntryAPI^.LibraryFile := '';
-                  DisposeObject(FAI_EntryAPI^.OneStepList);
-                  DisposeObject(FAI_EntryAPI^.Log);
-                  DisposeObject(FAI_EntryAPI^.Critical);
                   Dispose(FAI_EntryAPI);
                   FreeExtLib(libFile);
                 end;
@@ -3940,7 +3938,7 @@ begin
   desc := NewDesc;
 end;
 
-procedure SPToVec(V: TSP_Desc; L: TVec2List);
+procedure SPToVec(V: TSP_Desc; L: TV2L);
 var
   i: Integer;
 begin
@@ -3977,9 +3975,9 @@ end;
 procedure DrawSPLine(sp_desc: TSP_Desc; bp, ep: Integer; closeLine: Boolean; color: TDEColor; d: TDrawEngine);
 var
   i: Integer;
-  vl: TVec2List;
+  vl: TV2L;
 begin
-  vl := TVec2List.Create;
+  vl := TV2L.Create;
   for i := bp to ep do
       vl.Add(Vec2(sp_desc[i]));
 
@@ -7777,9 +7775,9 @@ end;
 function TPas_AI_Core_API.GetVersionTitle: TPascalString;
 begin
   if VerMode in [7, 8] then
-      Result := PFormat('%d.%d %s Update9', [MajorVer, MinorVer, GetVersionName().Text])
+      Result := PFormat('%d.%d %s Update15', [MajorVer, MinorVer, GetVersionName().Text])
   else
-      Result := PFormat('%d.%d %s %d Update9', [MajorVer, MinorVer, GetVersionName().Text, VerID]);
+      Result := PFormat('%d.%d %s %d Update15', [MajorVer, MinorVer, GetVersionName().Text, VerID]);
 end;
 
 function TPas_AI_Core_API.GetVersionInfo: TPascalString;
@@ -7969,27 +7967,27 @@ end;
 
 function TPas_AI.GetComputeDeviceNames(): U_StringArray;
 var
-  i, num: Integer;
+  i, Num: Integer;
 begin
   SetLength(Result, 0);
-  num := GetComputeDeviceNumOfProcess;
-  if num > 0 then
+  Num := GetComputeDeviceNumOfProcess;
+  if Num > 0 then
     begin
-      SetLength(Result, num);
-      for i := 0 to num - 1 do
+      SetLength(Result, Num);
+      for i := 0 to Num - 1 do
           Result[i] := GetComputeDeviceNameOfProcess(i);
     end;
 end;
 
 procedure TPas_AI.GetComputeDeviceNames(output: TCore_Strings);
 var
-  i, num: Integer;
+  i, Num: Integer;
 begin
   output.Clear;
-  num := GetComputeDeviceNumOfProcess;
-  if num > 0 then
+  Num := GetComputeDeviceNumOfProcess;
+  if Num > 0 then
     begin
-      for i := 0 to num - 1 do
+      for i := 0 to Num - 1 do
           output.Add(GetComputeDeviceNameOfProcess(i));
     end;
 end;
@@ -7997,7 +7995,7 @@ end;
 function TPas_AI.MakeSerializedFileName: U_String;
 begin
   repeat
-      Result := umlCombineFileName(RootPath, umlMakeRanName.Text + '.dat');
+      Result := umlCombineFileName(RootPath, umlGenerate_Random_Name.Text + '.dat');
   until not umlFileExists(Result);
 end;
 
@@ -9196,7 +9194,7 @@ begin
   tmpFileList := TPascalStringList.Create;
 
   TCore_Thread.Sleep(1);
-  prefix := 'temp_OD6L_' + umlMakeRanName.Text + '_';
+  prefix := 'temp_OD6L_' + umlGenerate_Random_Name.Text + '_';
 
   fn := umlCombineFileName(ph, prefix.Text + 'temp.xml');
   imgList.Build_XML(TokenFilter, False, False, 'Z.AI dataset', 'object detector training dataset', fn, prefix, tmpFileList);
@@ -9219,7 +9217,7 @@ begin
   tmpFileList := TPascalStringList.Create;
 
   TCore_Thread.Sleep(1);
-  prefix := 'temp_OD6L_' + umlMakeRanName.Text + '_';
+  prefix := 'temp_OD6L_' + umlGenerate_Random_Name.Text + '_';
 
   fn := umlCombineFileName(ph, prefix.Text + 'temp.xml');
   imgMat.Build_XML(TokenFilter, False, False, 'Z.AI dataset', 'object detector training dataset', fn, prefix, tmpFileList);
@@ -9238,7 +9236,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_OD6L_%s' + C_OD6L_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_OD6L_%s' + C_OD6L_Ext, [umlGenerate_Random_Name.Text]));
 
   if OD6L_Train(imgList, '', fn, window_w, window_h, thread_num) then
     if umlFileExists(fn) then
@@ -9256,7 +9254,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_OD6L_%s' + C_OD6L_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_OD6L_%s' + C_OD6L_Ext, [umlGenerate_Random_Name.Text]));
 
   if OD6L_Train(imgMat, '', fn, window_w, window_h, thread_num) then
     if umlFileExists(fn) then
@@ -9357,7 +9355,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_OD6L_%s' + C_OD6L_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_OD6L_%s' + C_OD6L_Ext, [umlGenerate_Random_Name.Text]));
 
   if LargeScale_OD6L_Train(imgList, fn, window_w, window_h, thread_num) then
     if umlFileExists(fn) then
@@ -9375,7 +9373,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_OD6L_%s' + C_OD6L_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_OD6L_%s' + C_OD6L_Ext, [umlGenerate_Random_Name.Text]));
 
   if LargeScale_OD6L_Train(imgMat, fn, window_w, window_h, thread_num) then
     if umlFileExists(fn) then
@@ -9478,7 +9476,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_OD6L_%s' + C_OD6L_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_OD6L_%s' + C_OD6L_Ext, [umlGenerate_Random_Name.Text]));
   Free_P_Bytes(param^.train_output);
   param^.train_output := Alloc_P_Bytes(fn);
 
@@ -9498,7 +9496,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_OD6L_%s' + C_OD6L_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_OD6L_%s' + C_OD6L_Ext, [umlGenerate_Random_Name.Text]));
   Free_P_Bytes(param^.train_output);
   param^.train_output := Alloc_P_Bytes(fn);
 
@@ -9707,7 +9705,7 @@ begin
   tmpFileList := TPascalStringList.Create;
 
   TCore_Thread.Sleep(1);
-  prefix := 'temp_OD3L_' + umlMakeRanName.Text + '_';
+  prefix := 'temp_OD3L_' + umlGenerate_Random_Name.Text + '_';
 
   fn := umlCombineFileName(ph, prefix.Text + 'temp.xml');
   imgList.Build_XML(TokenFilter, False, False, 'Z.AI dataset', 'object detector training dataset', fn, prefix, tmpFileList);
@@ -9730,7 +9728,7 @@ begin
   tmpFileList := TPascalStringList.Create;
 
   TCore_Thread.Sleep(1);
-  prefix := 'temp_OD3L_' + umlMakeRanName.Text + '_';
+  prefix := 'temp_OD3L_' + umlGenerate_Random_Name.Text + '_';
 
   fn := umlCombineFileName(ph, prefix.Text + 'temp.xml');
   imgMat.Build_XML(TokenFilter, False, False, 'Z.AI dataset', 'object detector training dataset', fn, prefix, tmpFileList);
@@ -9749,7 +9747,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_OD3L_%s' + C_OD3L_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_OD3L_%s' + C_OD3L_Ext, [umlGenerate_Random_Name.Text]));
 
   if OD3L_Train(imgList, '', fn, window_w, window_h, thread_num) then
     if umlFileExists(fn) then
@@ -9767,7 +9765,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_OD3L_%s' + C_OD3L_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_OD3L_%s' + C_OD3L_Ext, [umlGenerate_Random_Name.Text]));
 
   if OD3L_Train(imgMat, '', fn, window_w, window_h, thread_num) then
     if umlFileExists(fn) then
@@ -9866,7 +9864,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_OD3L_%s' + C_OD3L_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_OD3L_%s' + C_OD3L_Ext, [umlGenerate_Random_Name.Text]));
 
   if LargeScale_OD3L_Train(imgList, fn, window_w, window_h, thread_num) then
     if umlFileExists(fn) then
@@ -9884,7 +9882,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_OD3L_%s' + C_OD3L_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_OD3L_%s' + C_OD3L_Ext, [umlGenerate_Random_Name.Text]));
 
   if LargeScale_OD3L_Train(imgMat, fn, window_w, window_h, thread_num) then
     if umlFileExists(fn) then
@@ -9987,7 +9985,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_OD3L_%s' + C_OD3L_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_OD3L_%s' + C_OD3L_Ext, [umlGenerate_Random_Name.Text]));
   Free_P_Bytes(param^.train_output);
   param^.train_output := Alloc_P_Bytes(fn);
 
@@ -10007,7 +10005,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_OD3L_%s' + C_OD3L_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_OD3L_%s' + C_OD3L_Ext, [umlGenerate_Random_Name.Text]));
   Free_P_Bytes(param^.train_output);
   param^.train_output := Alloc_P_Bytes(fn);
 
@@ -10195,7 +10193,7 @@ begin
   for Token in token_arry do
     begin
       TCore_Thread.Sleep(1);
-      fn := umlCombineFileName(RootPath, PFormat('temp_OD_%s' + C_OD6L_Ext, [umlMakeRanName.Text]));
+      fn := umlCombineFileName(RootPath, PFormat('temp_OD_%s' + C_OD6L_Ext, [umlGenerate_Random_Name.Text]));
 
       if OD6L_Train(imgList, Token, fn, window_w, window_h, thread_num) then
         begin
@@ -10243,7 +10241,7 @@ begin
   for Token in token_arry do
     begin
       TCore_Thread.Sleep(1);
-      fn := umlCombineFileName(RootPath, PFormat('temp_OD_%s' + C_OD6L_Ext, [umlMakeRanName.Text]));
+      fn := umlCombineFileName(RootPath, PFormat('temp_OD_%s' + C_OD6L_Ext, [umlGenerate_Random_Name.Text]));
 
       if OD6L_Train(imgMat, Token, fn, window_w, window_h, thread_num) then
         begin
@@ -10537,7 +10535,7 @@ begin
   tmpFileList := TPascalStringList.Create;
 
   TCore_Thread.Sleep(1);
-  prefix := 'temp_SP_' + umlMakeRanName.Text + '_';
+  prefix := 'temp_SP_' + umlGenerate_Random_Name.Text + '_';
 
   fn := umlCombineFileName(ph, prefix.Text + 'temp.xml');
   imgList.Build_XML(True, True, 'Z.AI dataset', 'Shape predictor dataset', fn, prefix, tmpFileList);
@@ -10560,7 +10558,7 @@ begin
   tmpFileList := TPascalStringList.Create;
 
   TCore_Thread.Sleep(1);
-  prefix := 'temp_SP_' + umlMakeRanName.Text + '_';
+  prefix := 'temp_SP_' + umlGenerate_Random_Name.Text + '_';
 
   fn := umlCombineFileName(ph, prefix.Text + 'temp.xml');
   imgMat.Build_XML(True, True, 'Z.AI dataset', 'Shape predictor dataset', fn, prefix, tmpFileList);
@@ -10579,7 +10577,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_SP_%s' + C_SP_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_SP_%s' + C_SP_Ext, [umlGenerate_Random_Name.Text]));
 
   if SP_Train(imgList, fn, oversampling_amount, tree_depth, thread_num) then
     if umlFileExists(fn) then
@@ -10597,7 +10595,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_SP_%s' + C_SP_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_SP_%s' + C_SP_Ext, [umlGenerate_Random_Name.Text]));
 
   if SP_Train(imgMat, fn, oversampling_amount, tree_depth, thread_num) then
     if umlFileExists(fn) then
@@ -10698,7 +10696,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_SP_%s' + C_SP_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_SP_%s' + C_SP_Ext, [umlGenerate_Random_Name.Text]));
 
   if LargeScale_SP_Train(imgList, fn, oversampling_amount, tree_depth, thread_num) then
     if umlFileExists(fn) then
@@ -10716,7 +10714,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_SP_%s' + C_SP_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_SP_%s' + C_SP_Ext, [umlGenerate_Random_Name.Text]));
 
   if LargeScale_SP_Train(imgMat, fn, oversampling_amount, tree_depth, thread_num) then
     if umlFileExists(fn) then
@@ -10819,7 +10817,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_SP_%s' + C_SP_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_SP_%s' + C_SP_Ext, [umlGenerate_Random_Name.Text]));
   Free_P_Bytes(param^.train_output);
   param^.train_output := Alloc_P_Bytes(fn);
 
@@ -10839,7 +10837,7 @@ var
 begin
   Result := nil;
   TCore_Thread.Sleep(1);
-  fn := umlCombineFileName(RootPath, PFormat('temp_SP_%s' + C_SP_Ext, [umlMakeRanName.Text]));
+  fn := umlCombineFileName(RootPath, PFormat('temp_SP_%s' + C_SP_Ext, [umlGenerate_Random_Name.Text]));
   Free_P_Bytes(param^.train_output);
   param^.train_output := Alloc_P_Bytes(fn);
 
@@ -10930,13 +10928,13 @@ begin
   end;
 end;
 
-function TPas_AI.SP_Process_Vec2List(hnd: TSP_Handle; Raster: TMPasAI_Raster; const R: TRectV2): TVec2List;
+function TPas_AI.SP_Process_Vec2List(hnd: TSP_Handle; Raster: TMPasAI_Raster; const R: TRectV2): TV2L;
 var
   desc: TSP_Desc;
   i: Integer;
 begin
   desc := SP_Process(hnd, Raster, AIRect(R), 8192);
-  Result := TVec2List.Create;
+  Result := TV2L.Create;
   for i := 0 to Length(desc) - 1 do
       Result.Add(Vec2(desc[i]));
 end;
@@ -11003,13 +11001,13 @@ begin
   end;
 end;
 
-function TPas_AI.SP_ProcessRGB_Vec2List(hnd: TSP_Handle; rgb_img: TRGB_Image_Handle; const R: TRectV2): TVec2List;
+function TPas_AI.SP_ProcessRGB_Vec2List(hnd: TSP_Handle; rgb_img: TRGB_Image_Handle; const R: TRectV2): TV2L;
 var
   desc: TSP_Desc;
   i: Integer;
 begin
   desc := SP_ProcessRGB(hnd, rgb_img, AIRect(R), 8192);
-  Result := TVec2List.Create;
+  Result := TV2L.Create;
   for i := 0 to Length(desc) - 1 do
       Result.Add(Vec2(desc[i]));
 end;
@@ -11450,10 +11448,10 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Enabled_Read_History := True;
     end
   else
       FAI_EntryAPI^.RasterSerialized := nil;
@@ -11472,8 +11470,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
     end;
 
@@ -12253,8 +12251,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
     end
   else
@@ -12274,8 +12272,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
     end;
 
@@ -12999,7 +12997,7 @@ begin
   tmpFileList := TPascalStringList.Create;
   TCore_Thread.Sleep(1);
 
-  rn := umlMakeRanName.Text;
+  rn := umlGenerate_Random_Name.Text;
 
   train_xml_prefix := 'MMOD6L_DNN_' + rn + '_';
   test_xml_prefix := 'MMOD6L_DNN_TEST_' + rn + '_';
@@ -13026,7 +13024,7 @@ begin
   tmpFileList := TPascalStringList.Create;
   TCore_Thread.Sleep(1);
 
-  rn := umlMakeRanName.Text;
+  rn := umlGenerate_Random_Name.Text;
 
   train_xml_prefix := 'MMOD6L_DNN_' + rn + '_';
   test_xml_prefix := 'MMOD6L_DNN_TEST_' + rn + '_';
@@ -13051,7 +13049,7 @@ begin
   ph := RootPath;
   tmpFileList := TPascalStringList.Create;
   TCore_Thread.Sleep(1);
-  prefix := 'MMOD6L_DNN_' + umlMakeRanName.Text + '_';
+  prefix := 'MMOD6L_DNN_' + umlGenerate_Random_Name.Text + '_';
   fn := umlCombineFileName(ph, prefix.Text + 'temp.xml');
   imgList.Build_XML(True, False, 'Z.AI dataset', 'dnn resnet max-margin dataset', fn, prefix, tmpFileList);
   train_out := prefix.Text + 'output' + C_MMOD6L_Ext;
@@ -13068,7 +13066,7 @@ begin
   ph := RootPath;
   tmpFileList := TPascalStringList.Create;
   TCore_Thread.Sleep(1);
-  prefix := 'MMOD6L_DNN_' + umlMakeRanName.Text + '_';
+  prefix := 'MMOD6L_DNN_' + umlGenerate_Random_Name.Text + '_';
   fn := umlCombineFileName(ph, prefix.Text + 'temp.xml');
   imgMat.Build_XML(True, False, 'Z.AI dataset', 'build-in', fn, prefix, tmpFileList);
   train_out := prefix.Text + 'output' + C_MMOD6L_Ext;
@@ -13294,8 +13292,8 @@ begin
       param^.control := @TrainingControl;
 
       param^.saveMemory := 1; { large-scale MMOD trainer. }
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
       train_imgList.SerializedAndRecycleMemory(RSeri);
       FAI_EntryAPI^.Enabled_Trainer_Warning := param^.warning > 0; // lv2 warning
@@ -13306,8 +13304,8 @@ begin
           Result := -1;
       end;
 
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
 
       Last_training_average_loss := param^.training_average_loss;
@@ -13366,8 +13364,8 @@ begin
       param^.control := @TrainingControl;
 
       param^.saveMemory := 1; { large-scale MMOD trainer. }
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
       train_imgMat.SerializedAndRecycleMemory(RSeri);
       FAI_EntryAPI^.Enabled_Trainer_Warning := param^.warning > 0; // lv2 warning
@@ -13378,8 +13376,8 @@ begin
           Result := -1;
       end;
 
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
 
       Last_training_average_loss := param^.training_average_loss;
@@ -13558,8 +13556,8 @@ begin
       param^.control := @TrainingControl;
 
       param^.saveMemory := 1; { large-scale MMOD trainer. }
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
       imgList.SerializedAndRecycleMemory(RSeri);
       FAI_EntryAPI^.Enabled_Trainer_Warning := param^.warning > 0; // lv2 warning
@@ -13569,8 +13567,8 @@ begin
           Result := -1;
       end;
 
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
 
       Last_training_average_loss := param^.training_average_loss;
@@ -13610,8 +13608,8 @@ begin
       param^.control := @TrainingControl;
 
       param^.saveMemory := 1; { large-scale MMOD trainer. }
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
       imgMat.SerializedAndRecycleMemory(RSeri);
       FAI_EntryAPI^.Enabled_Trainer_Warning := param^.warning > 0; // lv2 warning
@@ -13622,8 +13620,8 @@ begin
           Result := -1;
       end;
 
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
 
       Last_training_average_loss := param^.training_average_loss;
@@ -13907,7 +13905,7 @@ begin
   tmpFileList := TPascalStringList.Create;
   TCore_Thread.Sleep(1);
 
-  rn := umlMakeRanName.Text;
+  rn := umlGenerate_Random_Name.Text;
 
   train_xml_prefix := 'MMOD3L_DNN_' + rn + '_';
   test_xml_prefix := 'MMOD3L_DNN_TEST_' + rn + '_';
@@ -13934,7 +13932,7 @@ begin
   tmpFileList := TPascalStringList.Create;
   TCore_Thread.Sleep(1);
 
-  rn := umlMakeRanName.Text;
+  rn := umlGenerate_Random_Name.Text;
 
   train_xml_prefix := 'MMOD3L_DNN_' + rn + '_';
   test_xml_prefix := 'MMOD3L_DNN_TEST_' + rn + '_';
@@ -13959,7 +13957,7 @@ begin
   ph := RootPath;
   tmpFileList := TPascalStringList.Create;
   TCore_Thread.Sleep(1);
-  prefix := 'MMOD3L_DNN_' + umlMakeRanName.Text + '_';
+  prefix := 'MMOD3L_DNN_' + umlGenerate_Random_Name.Text + '_';
   fn := umlCombineFileName(ph, prefix.Text + 'temp.xml');
   imgList.Build_XML(True, False, 'Z.AI dataset', 'dnn resnet max-margin dataset', fn, prefix, tmpFileList);
   train_out := prefix.Text + 'output' + C_MMOD3L_Ext;
@@ -13976,7 +13974,7 @@ begin
   ph := RootPath;
   tmpFileList := TPascalStringList.Create;
   TCore_Thread.Sleep(1);
-  prefix := 'MMOD3L_DNN_' + umlMakeRanName.Text + '_';
+  prefix := 'MMOD3L_DNN_' + umlGenerate_Random_Name.Text + '_';
   fn := umlCombineFileName(ph, prefix.Text + 'temp.xml');
   imgMat.Build_XML(True, False, 'Z.AI dataset', 'build-in', fn, prefix, tmpFileList);
   train_out := prefix.Text + 'output' + C_MMOD3L_Ext;
@@ -14202,8 +14200,8 @@ begin
       param^.control := @TrainingControl;
 
       param^.saveMemory := 1; { large-scale MMOD trainer. }
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
       train_imgList.SerializedAndRecycleMemory(RSeri);
       FAI_EntryAPI^.Enabled_Trainer_Warning := param^.warning > 0; // lv2 warning
@@ -14214,8 +14212,8 @@ begin
           Result := -1;
       end;
 
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
 
       Last_training_average_loss := param^.training_average_loss;
@@ -14274,8 +14272,8 @@ begin
       param^.control := @TrainingControl;
 
       param^.saveMemory := 1; { large-scale MMOD trainer. }
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
       train_imgMat.SerializedAndRecycleMemory(RSeri);
       FAI_EntryAPI^.Enabled_Trainer_Warning := param^.warning > 0; // lv2 warning
@@ -14286,8 +14284,8 @@ begin
           Result := -1;
       end;
 
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
 
       Last_training_average_loss := param^.training_average_loss;
@@ -14466,8 +14464,8 @@ begin
       param^.control := @TrainingControl;
 
       param^.saveMemory := 1; { large-scale MMOD trainer. }
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
       imgList.SerializedAndRecycleMemory(RSeri);
       FAI_EntryAPI^.Enabled_Trainer_Warning := param^.warning > 0; // lv2 warning
@@ -14478,8 +14476,8 @@ begin
           Result := -1;
       end;
 
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
 
       Last_training_average_loss := param^.training_average_loss;
@@ -14519,8 +14517,8 @@ begin
       param^.control := @TrainingControl;
 
       param^.saveMemory := 1; { large-scale MMOD trainer. }
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
       imgMat.SerializedAndRecycleMemory(RSeri);
       FAI_EntryAPI^.Enabled_Trainer_Warning := param^.warning > 0; // lv2 warning
@@ -14531,8 +14529,8 @@ begin
           Result := -1;
       end;
 
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
 
       Last_training_average_loss := param^.training_average_loss;
@@ -14833,8 +14831,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
     end
   else
@@ -14850,8 +14848,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
     end;
 
@@ -15288,8 +15286,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
     end
   else
@@ -15305,8 +15303,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
     end;
 
@@ -15739,8 +15737,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
     end
   else
@@ -15756,8 +15754,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
     end;
 
@@ -16204,8 +16202,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
     end
   else
@@ -16221,8 +16219,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
     end;
 
@@ -16661,8 +16659,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
       imgList.SerializedAndRecycleMemory(RSeri);
     end
@@ -16679,9 +16677,9 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.EnabledReadHistory := False;
+      RSeri.Enabled_Read_History := False;
       imgList.SerializedAndRecycleMemory(RSeri);
-      RSeri.ClearHistory;
+      RSeri.Clear_History;
       FAI_EntryAPI^.RasterSerialized := nil;
     end;
 
@@ -16753,8 +16751,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
       imgMat.SerializedAndRecycleMemory(RSeri);
     end
@@ -16771,9 +16769,9 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.EnabledReadHistory := False;
+      RSeri.Enabled_Read_History := False;
       imgMat.SerializedAndRecycleMemory(RSeri);
-      RSeri.ClearHistory;
+      RSeri.Clear_History;
       FAI_EntryAPI^.RasterSerialized := nil;
     end;
 
@@ -18276,7 +18274,7 @@ begin
   if not Assigned(FAI_EntryAPI^.ProcessOCR) then
       exit;
   m64 := TMS64.Create;
-  tmp := Raster.FitScaleAsNew(4096, 4096);
+  tmp := Raster.FitScaleAsNew(2564, 2564);
   tmp.SaveToBmp32Stream(m64);
   DisposeObject(tmp);
   try
@@ -18549,10 +18547,10 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_EntryAPI^.RasterSerialized := RSeri;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Enabled_Read_History := True;
     end
   else
       FAI_EntryAPI^.RasterSerialized := nil;
@@ -18568,8 +18566,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_EntryAPI^.RasterSerialized := nil;
     end;
 
@@ -19254,7 +19252,7 @@ begin
         for i := 0 to Count - 1 do
           with Items[i] do
               tmp.Append('%s %s DNN(%d): %d/%d - %s Event: %d/%d/%d'#13#10,
-              [if_(Name = '', ClassName, Name), ThreadInfo, ID, TaskNum, GPUPerformanceCritical, if_(Busy, 'Busy', 'IDLE'), GetCPUAsyncThreadNum(), FEventQueue.num, CPUThreadCritical]);
+              [if_(Name = '', ClassName, Name), ThreadInfo, ID, TaskNum, GPUPerformanceCritical, if_(Busy, 'Busy', 'IDLE'), GetCPUAsyncThreadNum(), FEventQueue.Num, CPUThreadCritical]);
       finally
           FCritical.UnLock;
       end;
@@ -19670,7 +19668,7 @@ begin
           R := 0;
         end;
 
-      while FEventQueue.num > 0 do
+      while FEventQueue.Num > 0 do
         begin
           while (FCPUThreadCritical > 0) and (FEventThreadNum > FCPUThreadCritical) do
               TCompute.Sleep(1);
@@ -19871,7 +19869,7 @@ end;
 
 function TPas_AI_DNN_Thread.Busy: Boolean;
 begin
-  Result := FThreadPost.Busy or (FEventThreadNum > 0) or (FEventQueue.num > 0);
+  Result := FThreadPost.Busy or (FEventThreadNum > 0) or (FEventQueue.Num > 0);
 end;
 
 function TPas_AI_DNN_Thread.GetAndLockLastProcessRaster: TPasAI_Raster;

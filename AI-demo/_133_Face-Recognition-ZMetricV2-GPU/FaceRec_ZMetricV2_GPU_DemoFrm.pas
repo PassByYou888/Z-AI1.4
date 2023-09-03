@@ -135,7 +135,8 @@ begin
       repeat
         if Token.L > 0 then
             Token.Append(#13#10);
-        Token.Append('候选%d: "%s" 采样:%d 精度:%d%%', [I__, queue^.Data^.Data.Second.Name.Text, Sampler_Num, round((1.0 - queue^.Data^.Data.Second.Distance_Mean) * 100)]);
+        Token.Append('候选%d: "%s" 采样:%d 精度:%d%%',
+          [I__, queue^.Data^.Data.Second.Name.Text, queue^.Data^.Data.Second.Num, round((1.0 - queue^.Data^.Data.Second.Distance_Weight_Mean) * 100)]);
       until not Next;
   TCompute.PostFreeObjectInThreadAndNil(hash_pool);
 end;
@@ -143,7 +144,7 @@ end;
 procedure TJitter_Box.Do_ZM2_Jitter_Done(ThSender: TPas_AI_TECH_2022_DNN_Thread_ZMetric_V2; UserData: Pointer; Input: TMPasAI_Raster; Box: TRectV2; output: TLMatrix);
 begin
   Sampler_Num := length(output);
-  hash_pool := L.ProcessMaxIndexCandidate_Arry_ByOptimized(output, 0, 1);
+  hash_pool := L.ProcessMaxIndexCandidate_Arry_ByOptimized(output, 0, 0.1);
   hash_pool.Sort_Mean();
   TCompute.PostM1(Do_Sync);
 end;
@@ -151,7 +152,7 @@ end;
 procedure TJitter_Box.Do_ZM2_Done(ThSender: TPas_AI_TECH_2022_DNN_Thread_ZMetric_V2; UserData: Pointer; Input: TMPasAI_Raster; Box: TRectV2; output: TLVec);
 begin
   Sampler_Num := 1;
-  hash_pool := L.ProcessMaxIndexCandidate_Arry_ByOptimized(output, 0, 1);
+  hash_pool := L.ProcessMaxIndexCandidate_Arry_ByOptimized(output, 0, 0.1);
   hash_pool.Sort_Mean();
   TCompute.PostM1(Do_Sync);
 end;
@@ -160,7 +161,7 @@ procedure TJitter_Box.Do_ZM2_Fast_Jitter_Done(ThSender: TPas_AI_TECH_2022_DNN_Th
 begin
   // 高速候选模式,不会遍历向量空间,在单线程支持每秒上千次调用
   Sampler_Num := length(output);
-  hash_pool := L.Fast_Search_Nearest_K_Candidate(output, 0, 1);
+  hash_pool := L.Fast_Search_Nearest_K_Candidate(output, 0, 0.1);
   hash_pool.Sort_Mean();
   TCompute.PostM1(Do_Sync);
 end;
@@ -513,7 +514,7 @@ begin
       TPas_AI_DNN_Thread_MMOD6L(Face_DNN_Thread[i]).Open_Face;
 
   ZM2_DNN_Thread := TPas_AI_TECH_2022_DNN_Thread_Pool.Create;
-  ZM2_DNN_Thread.BuildPerDeviceThread(10, TPas_AI_TECH_2022_DNN_Thread_ZMetric_V2);
+  ZM2_DNN_Thread.BuildPerDeviceThread(5, TPas_AI_TECH_2022_DNN_Thread_ZMetric_V2);
   for i := 0 to ZM2_DNN_Thread.Count - 1 do
       TPas_AI_TECH_2022_DNN_Thread_ZMetric_V2(ZM2_DNN_Thread[i]).Open(fn);
 

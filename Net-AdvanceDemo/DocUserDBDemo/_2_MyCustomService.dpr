@@ -3,7 +3,7 @@ program _2_MyCustomService;
 uses
   Vcl.Forms,
   MyCustomService in 'MyCustomService.pas',
-  C40AppTempletFrm in '..\..\C4AdminTools\Delphi-C4AppTemplet\C40AppTempletFrm.pas' {C40AppTempletForm};
+  C40AppTempletFrm in '..\..\Net-AdminTools\Delphi-C4AppTemplet\C40AppTempletFrm.pas' {C40AppTempletForm};
 
 {$R *.res}
 

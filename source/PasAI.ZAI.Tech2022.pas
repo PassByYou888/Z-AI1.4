@@ -263,6 +263,7 @@ type
     SerializedTime: TTimeTick;
     Swap_Raster_Pool: TMR_Pool;
     Rand: TRandom;
+    Critical: TCritical;
     Enabled_Trainer_Warning: Boolean;
 
     function GetVersionName: TPascalString;
@@ -845,9 +846,9 @@ end;
 function TPas_AI_TECH_2022_Core_API.GetVersionTitle: TPascalString;
 begin
   if VerMode in [7, 8] then
-      Result := PFormat('%d.%d %s Update9', [MajorVer, MinorVer, GetVersionName().Text])
+      Result := PFormat('%d.%d %s Update15', [MajorVer, MinorVer, GetVersionName().Text])
   else
-      Result := PFormat('%d.%d %s %d Update9', [MajorVer, MinorVer, GetVersionName().Text, VerID]);
+      Result := PFormat('%d.%d %s %d Update15', [MajorVer, MinorVer, GetVersionName().Text, VerID]);
 end;
 
 function TPas_AI_TECH_2022_Core_API.GetVersionInfo: TPascalString;
@@ -1563,10 +1564,10 @@ begin
   { update RasterSerialized }
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := True;
       FAI_TECH_2022_Entry^.RasterSerialized := RSeri;
-      RSeri.EnabledReadHistory := True;
+      RSeri.Enabled_Read_History := True;
     end
   else
       FAI_TECH_2022_Entry^.RasterSerialized := nil;
@@ -1582,8 +1583,8 @@ begin
 
   if LargeScale_ then
     begin
-      RSeri.ClearHistory;
-      RSeri.EnabledReadHistory := False;
+      RSeri.Clear_History;
+      RSeri.Enabled_Read_History := False;
       FAI_TECH_2022_Entry^.RasterSerialized := nil;
     end;
 
@@ -1953,10 +1954,69 @@ var
   ss_width, ss_height, XY_Offset_Scale, Rotate_, Scale_: Double;
   inner_fit: Boolean;
   rArry: array of TPas_AI_TECH_2022_Raster_Data;
-  i: Integer;
-  tmp_box: TRectV2;
-  tmp_angle: TGeoFloat;
-  tmp_raster: TPasAI_Raster;
+
+{$IFDEF FPC}
+  procedure Nested_ParallelFor(pass: Integer);
+  var
+    tmp_box: TRectV2;
+    tmp_angle: TGeoFloat;
+    tmp_raster: TPasAI_Raster;
+  begin
+    // make jitter
+    Make_Jitter_Box(FAI_TECH_2022_Entry^.Rand,
+      XY_Offset_Scale, Rotate_, Scale_, inner_fit, RectScaleSpace(Box, ss_width, ss_height), tmp_box, tmp_angle);
+    tmp_box := RectFit(ss_width, ss_height, tmp_box); // standardized scale
+    // make rasterization
+    tmp_raster := NewPasAI_Raster();
+    tmp_raster.SetSizeF(ss_width, ss_height, RColor(0, 0, 0));
+    Raster.ProjectionTo(tmp_raster, TV2R4.Init(tmp_box, tmp_angle), tmp_raster.BoundsV2Rect40, True, 1.0);
+    // update buff
+    new(rArry[pass].raster_Hnd);
+    rArry[pass].raster_Hnd^.Raster := tmp_raster;
+    rArry[pass].raster_ptr := tmp_raster.Bits;
+    rArry[pass].Width := tmp_raster.Width;
+    rArry[pass].Height := tmp_raster.Height;
+    rArry[pass].Index := pass;
+  end;
+{$ENDIF FPC}
+  procedure Do_Build_Jitter_Data;
+  var
+    i: Integer;
+    tmp_box: TRectV2;
+    tmp_angle: TGeoFloat;
+    tmp_raster: TPasAI_Raster;
+  begin
+    for i := 0 to Jitter_Num - 1 do
+      begin
+        // make jitter
+        Make_Jitter_Box(FAI_TECH_2022_Entry^.Rand,
+          XY_Offset_Scale, Rotate_, Scale_, inner_fit, RectScaleSpace(Box, ss_width, ss_height), tmp_box, tmp_angle);
+        tmp_box := RectFit(ss_width, ss_height, tmp_box); // standardized scale
+        // make rasterization
+        tmp_raster := NewPasAI_Raster();
+        tmp_raster.SetSizeF(ss_width, ss_height, RColor(0, 0, 0));
+        Raster.ProjectionTo(tmp_raster, TV2R4.Init(tmp_box, tmp_angle), tmp_raster.BoundsV2Rect40, True, 1.0);
+        // update buff
+        new(rArry[i].raster_Hnd);
+        rArry[i].raster_Hnd^.Raster := tmp_raster;
+        rArry[i].raster_ptr := tmp_raster.Bits;
+        rArry[i].Width := tmp_raster.Width;
+        rArry[i].Height := tmp_raster.Height;
+        rArry[i].Index := i;
+      end;
+  end;
+
+  procedure Do_Done_Free;
+  var
+    i: Integer;
+  begin
+    for i := 0 to Length(rArry) - 1 do
+      begin
+        DisposeObject(rArry[i].raster_Hnd^.Raster);
+        Dispose(rArry[i].raster_Hnd);
+      end;
+  end;
+
 begin
   Result := -2;
   if not ZMetric_V2_Get_Jitter_Value(hnd, ss_width, ss_height, XY_Offset_Scale, Rotate_, Scale_, inner_fit) then
@@ -1967,23 +2027,39 @@ begin
       exit;
 
   SetLength(rArry, Jitter_Num);
-  for i := 0 to Jitter_Num - 1 do
+
+  if Jitter_Num > AI_Parallel_Count then
     begin
-      // make jitter
-      Make_Jitter_Box(FAI_TECH_2022_Entry^.Rand,
-        XY_Offset_Scale, Rotate_, Scale_, inner_fit, RectScaleSpace(Box, ss_width, ss_height), tmp_box, tmp_angle);
-      tmp_box := RectFit(ss_width, ss_height, tmp_box); // standardized scale
-      // make rasterization
-      tmp_raster := NewPasAI_Raster();
-      tmp_raster.SetSizeF(ss_width, ss_height, RColor(0, 0, 0));
-      Raster.ProjectionTo(tmp_raster, TV2R4.Init(tmp_box, tmp_angle), tmp_raster.BoundsV2Rect40, True, 1.0);
-      // update buff
-      new(rArry[i].raster_Hnd);
-      rArry[i].raster_Hnd^.Raster := tmp_raster;
-      rArry[i].raster_ptr := tmp_raster.Bits;
-      rArry[i].Width := tmp_raster.Width;
-      rArry[i].Height := tmp_raster.Height;
-      rArry[i].Index := i;
+{$IFDEF FPC}
+      ParallelFor(AI_Parallel_Count, True, 0, Jitter_Num - 1, @Nested_ParallelFor);
+{$ELSE FPC}
+      ParallelFor(AI_Parallel_Count, True, 0, Jitter_Num - 1, procedure(pass: Integer)
+        var
+          tmp_box: TRectV2;
+          tmp_angle: TGeoFloat;
+          tmp_raster: TPasAI_Raster;
+        begin
+          // make jitter
+          Make_Jitter_Box(FAI_TECH_2022_Entry^.Rand,
+            XY_Offset_Scale, Rotate_, Scale_, inner_fit, RectScaleSpace(Box, ss_width, ss_height), tmp_box, tmp_angle);
+          tmp_box := RectFit(ss_width, ss_height, tmp_box); // standardized scale
+          // make rasterization
+          tmp_raster := NewPasAI_Raster();
+          tmp_raster.SetSizeF(ss_width, ss_height, RColor(0, 0, 0));
+          Raster.ProjectionTo(tmp_raster, TV2R4.Init(tmp_box, tmp_angle), tmp_raster.BoundsV2Rect40, True, 1.0);
+          // update buff
+          new(rArry[pass].raster_Hnd);
+          rArry[pass].raster_Hnd^.Raster := tmp_raster;
+          rArry[pass].raster_ptr := tmp_raster.Bits;
+          rArry[pass].Width := tmp_raster.Width;
+          rArry[pass].Height := tmp_raster.Height;
+          rArry[pass].Index := pass;
+        end);
+{$ENDIF FPC}
+    end
+  else
+    begin
+      Do_Build_Jitter_Data();
     end;
 
   FAI_TECH_2022_Entry^.RasterSerialized := nil;
@@ -1995,11 +2071,7 @@ begin
       Result := -2;
   end;
 
-  for i := 0 to Length(rArry) - 1 do
-    begin
-      DisposeObject(rArry[i].raster_Hnd^.Raster);
-      Dispose(rArry[i].raster_Hnd);
-    end;
+  Do_Done_Free;
   SetLength(rArry, 0);
 end;
 
@@ -2555,10 +2627,10 @@ begin
 
   if FAI.isGPU then
       FThreadInfo := PFormat('TECH2022 %s GPU[%d] %s thread:%d', [
-        if_(FAI.GetComputeDeviceOfProcess = FDevice, 'OK', 'Error'),
-        FAI.GetComputeDeviceOfProcess,
-        FAI.GetComputeDeviceNameOfProcess(FAI.GetComputeDeviceOfProcess).Text,
-        Sender.ThreadID])
+      if_(FAI.GetComputeDeviceOfProcess = FDevice, 'OK', 'Error'),
+      FAI.GetComputeDeviceOfProcess,
+      FAI.GetComputeDeviceNameOfProcess(FAI.GetComputeDeviceOfProcess).Text,
+      Sender.ThreadID])
   else if FAI.isMKL then
       FThreadInfo := PFormat('TECH2022 %s INTEL-MKL[%d] %s thread:%d', ['OK', 0, 'X86/X64', Sender.ThreadID])
   else
@@ -3333,7 +3405,8 @@ begin
                 AI_TECH_2022_Entry^.RasterSerialized := nil;
                 AI_TECH_2022_Entry^.SerializedTime := GetTimeTick();
                 AI_TECH_2022_Entry^.Swap_Raster_Pool := nil;
-                AI_TECH_2022_Entry^.Rand := TRandom.Create;
+                AI_TECH_2022_Entry^.Rand := nil;
+                AI_TECH_2022_Entry^.Critical := nil;
                 AI_TECH_2022_Entry^.Enabled_Trainer_Warning := True;
 
                 try
@@ -3342,6 +3415,8 @@ begin
 
                   if (AI_TECH_2022_Entry^.MajorVer = 1) and (AI_TECH_2022_Entry^.MinorVer = 0) and (AI_TECH_2022_Entry^.VerMode = 3) and (AI_TECH_2022_Entry^.VerID = 3) then
                     begin
+                      AI_TECH_2022_Entry^.Rand := TRandom.Create;
+                      AI_TECH_2022_Entry^.Critical := TCritical.Create;
                       AI_TECH_2022_Entry_Cache.Add(libFile, AI_TECH_2022_Entry, False);
                       DoStatus(AI_TECH_2022_Entry^.GetVersionInfo());
                       Result := AI_TECH_2022_Entry;
@@ -3396,6 +3471,7 @@ procedure Close_AI_Engine_TECH_2022;
         begin
           AI_TECH_2022_Entry^.CloseAI();
           DisposeObjectAndNil(AI_TECH_2022_Entry^.Rand);
+          DisposeObjectAndNil(AI_TECH_2022_Entry^.Critical);
           Dispose(AI_TECH_2022_Entry);
         end;
     except
@@ -3423,8 +3499,6 @@ end;
 
 procedure API_AI_TECH_2022_OnOneStep(Sender: PAI_TECH_2022_Core_API; one_step_calls: UInt64); stdcall;
 var
-  L: TMR_List;
-  i: Integer;
   recycle_mem: Int64;
 begin
   try
@@ -3434,14 +3508,20 @@ begin
         begin
           // cache memory optimize
           Sender^.RasterSerialized.Critical.Acquire;
-          L := Sender^.RasterSerialized.ReadHistory;
-          recycle_mem := 0;
-          for i := L.Count - 1 downto 0 do
-            if GetTimeTick() - L[i].ActiveTimeTick() > AI_TECH_2022_Large_Scale_Training_Memory_Recycle_Time then
-              begin
-                inc(recycle_mem, L[i].RecycleMemory()); // recycle
-                L.Delete(i);
-              end;
+          Sender^.RasterSerialized.Read_History_Pool.Free_Recycle_Pool;
+          if Sender^.RasterSerialized.Read_History_Pool.Num > 0 then
+            with Sender^.RasterSerialized.Read_History_Pool.Repeat_ do
+              repeat
+                if GetTimeTick() - Queue^.Data.ActiveTimeTick() > AI_TECH_2022_Large_Scale_Training_Memory_Recycle_Time then
+                  begin
+                    inc(recycle_mem, Queue^.Data.RecycleMemory()); // recycle
+                    Queue^.Data.Serialized_Read_History_Ptr := nil;
+                    Sender^.RasterSerialized.Read_History_Pool.Push_To_Recycle_Pool(Queue);
+                  end
+                else
+                    break; // optimized
+              until not Next;
+          Sender^.RasterSerialized.Read_History_Pool.Free_Recycle_Pool;
           Sender^.RasterSerialized.Critical.Release;
           Sender^.SerializedTime := GetTimeTick();
         end;
@@ -3588,9 +3668,9 @@ begin
 end;
 
 function API_AI_TECH_2022_Jitter(
-  Sender: PAI_TECH_2022_Core_API;
-  DetDef: PAI_TECH_2022_Detector_Define_Handle;
-  SS_Raster_Width, SS_Raster_Height, XY_Offset_Scale_, Rotate_, Scale_: Double; inner_fit_: Integer): PAI_TECH_2022_Raster_Handle; stdcall;
+Sender: PAI_TECH_2022_Core_API;
+DetDef: PAI_TECH_2022_Detector_Define_Handle;
+SS_Raster_Width, SS_Raster_Height, XY_Offset_Scale_, Rotate_, Scale_: Double; inner_fit_: Integer): PAI_TECH_2022_Raster_Handle; stdcall;
 var
   p: PAI_TECH_2022_Raster_Handle;
 begin
@@ -3629,7 +3709,8 @@ begin
     end;
   DetDef := p^.DetDef;
   LockObject(p^.L);
-  p^.L.AddMemory(output, DetDef.Token);
+  p^.L.AddMemory(output, DetDef.Token,
+    PFormat('%d,%d,%d', [p^.DetDef.Owner.Owner.ID, p^.DetDef.Owner.ID, p^.DetDef.Owner.DetectorDefineList.IndexOf(p^.DetDef)]));
   UnLockObject(p^.L);
   Dispose(p);
 end;
@@ -3647,7 +3728,8 @@ begin
     end;
   DetDef := p^.DetDef;
   LockObject(p^.L);
-  p^.L.AddMemory(output, DetDef.Token);
+  p^.L.AddMemory(output, DetDef.Token,
+    PFormat('%d,%d,%d', [p^.DetDef.Owner.Owner.ID, p^.DetDef.Owner.ID, p^.DetDef.Owner.DetectorDefineList.IndexOf(p^.DetDef)]));
   UnLockObject(p^.L);
   Dispose(p);
 end;
@@ -3663,7 +3745,8 @@ begin
   LockObject(p^.L);
   for i := 0 to Length(output) - 1 do
     if Length(output[i]) = C_ZMetric_V2_Dim then
-        p^.L.AddMemory(output[i], DetDef.Token)
+        p^.L.AddMemory(output[i], DetDef.Token,
+        PFormat('%d,%d,%d', [p^.DetDef.Owner.Owner.ID, p^.DetDef.Owner.ID, p^.DetDef.Owner.DetectorDefineList.IndexOf(p^.DetDef)]))
     else
         DoStatus('Z-Metric V2.0 vector error!');
   UnLockObject(p^.L);
@@ -3905,11 +3988,11 @@ begin
 
               if umlMultipleMatch('*' + C_ImageMatrix_Ext, inputfile1) then
                   outputstream := AI.DCGAN_DNN_Train_Stream(
-                  param.GetDefaultValue('Snapshot', False),
+                param.GetDefaultValue('Snapshot', False),
                   inputImgMatrix, DCGAN_param)
               else
                   outputstream := AI.DCGAN_DNN_Train_Stream(
-                  param.GetDefaultValue('Snapshot', False),
+                param.GetDefaultValue('Snapshot', False),
                   inputImgList, DCGAN_param);
 
               TPas_AI_TECH_2022.Free_DCGAN_DNN_TrainParam(DCGAN_param);
@@ -4022,7 +4105,7 @@ begin
 
                       if umlMultipleMatch('*' + C_ImageMatrix_Ext, inputfile1) then
                           AI.ZMetric_V2_Save_To_Learn_DNN_Thread(
-                          param.GetDefaultValue('Learn_Jitter', True),
+                        param.GetDefaultValue('Learn_Jitter', True),
                           param.GetDefaultValue('Learn_Jitter_Num', 50),
                           param.GetDefaultValue('Learn_Thread_Num', 10),
                           outputstream,
@@ -4030,7 +4113,7 @@ begin
                           LearnEng)
                       else
                           AI.ZMetric_V2_Save_To_Learn_DNN_Thread(
-                          param.GetDefaultValue('Learn_Jitter', True),
+                        param.GetDefaultValue('Learn_Jitter', True),
                           param.GetDefaultValue('Learn_Jitter_Num', 50),
                           param.GetDefaultValue('Learn_Thread_Num', 10),
                           outputstream,
@@ -4083,8 +4166,8 @@ begin
 end;
 
 function AI_TECH_2022_RunLargeScaleTrainingTask(
-  ImgMatDatasetFile, RasterSerializedFile, Training_RasterSerializedFile, SyncFile, OutputModel: U_String;
-  AI: TPas_AI_TECH_2022; param: THashVariantList): Boolean;
+ImgMatDatasetFile, RasterSerializedFile, Training_RasterSerializedFile, SyncFile, OutputModel: U_String;
+AI: TPas_AI_TECH_2022; param: THashVariantList): Boolean;
 var
   ComputeFunc: SystemString;
   train_Img_Matrix: TPas_AI_ImageMatrix;
@@ -4187,7 +4270,7 @@ begin
             m64 := TMS64.Create;
             m64.LoadFromFile(OutputModel);
             AI.ZMetric_V2_Save_To_Learn_DNN_Thread(
-              param.GetDefaultValue('Learn_Jitter', True),
+            param.GetDefaultValue('Learn_Jitter', True),
               param.GetDefaultValue('Learn_Jitter_Num', 50),
               param.GetDefaultValue('Learn_Thread_Num', 10),
               m64,

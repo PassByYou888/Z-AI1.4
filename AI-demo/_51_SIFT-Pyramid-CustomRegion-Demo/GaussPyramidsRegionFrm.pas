@@ -57,7 +57,7 @@ type
     ft1, ft2: TFeature;
     ort1, ort2: TDETexture;
     t1, t2: TDETexture;
-    vl1, vl2: TVec2List;
+    vl1, vl2: TV2L;
     b1, b2: TDERect;
     drawIntf: TDrawEngineInterface_FMX;
     procedure DoStatusM(Text_: SystemString; const ID: Integer);
@@ -142,11 +142,11 @@ end;
 
 procedure TGaussPyramidsForm.Button4Click(Sender: TObject);
 var
-  nvl: TVec2List;
+  nvl: TV2L;
   w, h: TLInt;
 begin
   DisposeObject(ft1);
-  nvl := TVec2List.Create;
+  nvl := TV2L.Create;
   nvl.Assign(vl1);
   nvl.Transform(-b1[0, 0], -b1[0, 1]);
   w := ort1.width;
@@ -180,11 +180,11 @@ end;
 
 procedure TGaussPyramidsForm.Button7Click(Sender: TObject);
 var
-  nvl: TVec2List;
+  nvl: TV2L;
   w, h: TLInt;
 begin
   DisposeObject(ft2);
-  nvl := TVec2List.Create;
+  nvl := TV2L.Create;
   nvl.Assign(vl2);
   nvl.Transform(-b2[0, 0], -b2[0, 1]);
   w := ort2.width;
@@ -209,8 +209,8 @@ begin
   ort1 := DefaultTextureClass.Create;
   ort2 := DefaultTextureClass.Create;
 
-  vl1 := TVec2List.Create;
-  vl2 := TVec2List.Create;
+  vl1 := TV2L.Create;
+  vl2 := TV2L.Create;
   inherited;
 end;
 

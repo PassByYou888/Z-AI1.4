@@ -107,7 +107,7 @@ end;
 
 function BuildDistortionModel_Polynomial(DistortionCoord: TArrayVec2; degree: TLInt; var model: TBarycentricInterpolant): Boolean;
 var
-  L: TVec2List;
+  L: TV2L;
   d: TGeoFloat;
   i: TLInt;
   formulaVec: TLVec;
@@ -117,7 +117,7 @@ var
   Rep: TPolynomialFitReport;
 begin
   Result := False;
-  L := TVec2List.Create;
+  L := TV2L.Create;
   L.AssignFromArrayV2(DistortionCoord);
 
   // formula distortion

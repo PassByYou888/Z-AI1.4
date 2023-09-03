@@ -10,7 +10,7 @@ uses Types, PasAI.Core, PasAI.PascalStrings, PasAI.UnicodeMixedLib, PasAI.Status
   PasAI.Net, PasAI.Net.DoubleTunnelIO.NoAuth;
 
 type
-  TFACE_VideoIO_ = class(TPeerIOUserSpecial)
+  TFACE_VideoIO_ = class(TPeer_IO_User_Special)
   public
     VideoFrames: TMemoryStream64List;
     constructor Create(AOwner: TPeerIO); override;

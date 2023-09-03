@@ -401,7 +401,7 @@ type
     AutoFreeObjects: TCore_ObjectList;
     OnBulletRender: TOnBulletRender;
 
-    constructor Create(AngleTransform_: TBullet_AngleTransform; Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TVec2List);
+    constructor Create(AngleTransform_: TBullet_AngleTransform; Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TV2L);
     destructor Destroy; override;
     procedure Prepare; virtual;
     procedure Progress(deltaTime: Double); virtual;
@@ -435,7 +435,7 @@ type
 
     constructor Create(AngleTransform_: TBullet_AngleTransform;
       Text_: SystemString; TextSize_: Integer; TextColor_: TDEColor;
-      Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TVec2List);
+      Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TV2L);
     destructor Destroy; override;
     procedure Render(D: TDrawEngine; InScene: Boolean); override;
   end;
@@ -444,7 +444,7 @@ type
   public
     constructor Create(AngleTransform_: TBullet_AngleTransform;
       Text_: SystemString; TextSize_: Integer; TextColor_: TDEColor;
-      Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TVec2List);
+      Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TV2L);
     destructor Destroy; override;
     procedure Render(D: TDrawEngine; InScene: Boolean); override;
   end;
@@ -459,7 +459,7 @@ type
 
     constructor Create(AngleTransform_: TBullet_AngleTransform;
       Picture_: TCore_Object; Sour_: TDERect; DestSize_: TDEVec; Alpha_: TDEFloat; Fit_: Boolean;
-      Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TVec2List);
+      Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TV2L);
     destructor Destroy; override;
     procedure Render(D: TDrawEngine; InScene: Boolean); override;
   end;
@@ -468,7 +468,7 @@ type
   public
     constructor Create(AngleTransform_: TBullet_AngleTransform;
       Picture_: TCore_Object; Sour_: TDERect; DestSize_: TDEVec; Alpha_: TDEFloat; Fit_: Boolean;
-      Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TVec2List);
+      Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TV2L);
     destructor Destroy; override;
     procedure Render(D: TDrawEngine; InScene: Boolean); override;
   end;
@@ -485,7 +485,7 @@ type
 
     constructor Create(AngleTransform_: TBullet_AngleTransform;
       flag_: Variant; Picture_: TDETexture; CompleteTime_: Double; Looped_: Boolean; DestSize_: TDEVec; Alpha_: TDEFloat; Fit_: Boolean;
-      Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TVec2List);
+      Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TV2L);
     destructor Destroy; override;
     procedure Render(D: TDrawEngine; InScene: Boolean); override;
   end;
@@ -1036,15 +1036,15 @@ type
     procedure DrawInSideSmoothArrayLineInScene(DotLine: Boolean; arry: TArrayVec2; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
     procedure DrawArrayLine(arry: TArrayVec2; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat); overload;
     procedure DrawArrayLineInScene(arry: TArrayVec2; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat); overload;
-    procedure DrawOutSideSmoothPL(DotLine: Boolean; pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
-    procedure DrawOutSideSmoothPLInScene(DotLine: Boolean; pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
-    procedure DrawInSideSmoothPL(DotLine: Boolean; pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
-    procedure DrawInSideSmoothPLInScene(DotLine: Boolean; pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
-    procedure DrawPL(DotLine: Boolean; pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat); overload;
-    procedure DrawPLInScene(DotLine: Boolean; pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat); overload;
-    procedure DrawPL(pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat); overload;
-    procedure DrawPLInScene(pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat); overload;
-    procedure DrawPLInScene(pl: TVec2List; ClosedLine: Boolean; opt: TPolyDrawOption); overload;
+    procedure DrawOutSideSmoothPL(DotLine: Boolean; pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
+    procedure DrawOutSideSmoothPLInScene(DotLine: Boolean; pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
+    procedure DrawInSideSmoothPL(DotLine: Boolean; pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
+    procedure DrawInSideSmoothPLInScene(DotLine: Boolean; pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
+    procedure DrawPL(DotLine: Boolean; pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat); overload;
+    procedure DrawPLInScene(DotLine: Boolean; pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat); overload;
+    procedure DrawPL(pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat); overload;
+    procedure DrawPLInScene(pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat); overload;
+    procedure DrawPLInScene(pl: TV2L; ClosedLine: Boolean; opt: TPolyDrawOption); overload;
     procedure DrawPolyInScene(Poly: TDeflectionPolygon; ClosedLine: Boolean; opt: TPolyDrawOption);
     procedure DrawPolyExpandInScene(Poly: TDeflectionPolygon; ExpandDistance: TDEFloat; ClosedLine: Boolean; opt: TPolyDrawOption);
     procedure DrawTriangle(DotLine: Boolean; const t: TTriangle; COLOR: TDEColor; LineWidth: TDEFloat; DrawCentre: Boolean); overload;
@@ -1100,6 +1100,7 @@ type
     procedure DrawDotLineBox(box: TV2Rect4; COLOR: TDEColor; LineWidth: TDEFloat); overload;
     procedure DrawDotLineBoxInScene(box: TV2Rect4; COLOR: TDEColor; LineWidth: TDEFloat); overload;
     procedure DrawDotLineBox(r: TDERect; axis: TDEVec; Angle: TDEFloat; COLOR: TDEColor; LineWidth: TDEFloat); overload;
+    procedure DrawDotLineBox(r: TDERect; Angle: TDEFloat; COLOR: TDEColor; LineWidth: TDEFloat); overload;
     procedure DrawDotLineBoxInScene(r: TDERect; axis: TDEVec; Angle: TDEFloat; COLOR: TDEColor; LineWidth: TDEFloat); overload;
     procedure DrawDotLineBox(r: TDERect; COLOR: TDEColor; LineWidth: TDEFloat); overload;
     procedure DrawDotLineBoxInScene(r: TDERect; COLOR: TDEColor; LineWidth: TDEFloat); overload;
@@ -1212,9 +1213,11 @@ type
     function FitDrawPictureInScene(indentEndge: Boolean; t: TCore_Object; Sour, destScene: TDERect; Alpha: TDEFloat): TDERect; overload;
     { draw texture packing in scene }
     function DrawRectPackingInScene(rp: TRectPacking; destOffset: TDEVec; Alpha: TDEFloat; ShowBox: Boolean): TDERect;
-    function DrawPicturePackingInScene(Input_: TMemoryPasAI_RasterList; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat; ShowBox: Boolean): TDERect; overload;
-    function DrawPicturePackingInScene(Input_: TMemoryPasAI_RasterList; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat): TDERect; overload;
-    function DrawPictureMatrixPackingInScene(Input_: TMemoryPasAI_Raster2DMatrix; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat; ShowBox: Boolean): TDERect;
+    function DrawPicturePackingInScene(Input_: TMR_List; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat; ShowBox: Boolean): TDERect; overload;
+    function DrawPicturePackingInScene(Input_: TMR_List; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat): TDERect; overload;
+    function DrawPictureMatrixPackingInScene(Input_: TMR_2D_Matrix; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat; ShowBox: Boolean): TDERect; overload;
+    function DrawPictureMatrixPackingInScene(Input_: TMR_2D_Matrix; var output_: TMatrix_RectV2;
+      Packing_Style_1, Packing_Style_2: TRectPacking_Style; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat; ShowBox: Boolean): TDERect; overload;
     { draw text packing in scene }
     function DrawTextPackingInScene(Input_: TArrayPascalString; text_color: TDEColor; text_siz, Margins: TDEFloat; destOffset: TDEVec; ShowBox: Boolean): TDERect; overload;
     function DrawTextPackingInScene(Input_: TArrayPascalString; text_color: TDEColor; text_siz, Margins: TDEFloat; destOffset: TDEVec): TDERect; overload;
@@ -3357,7 +3360,7 @@ begin
   Owner.FDrawCommand.DrawText(Text, TextSize, r, C, True, DEVec(0.5, 0.5), 0);
 end;
 
-constructor TBullet_Base.Create(AngleTransform_: TBullet_AngleTransform; Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TVec2List);
+constructor TBullet_Base.Create(AngleTransform_: TBullet_AngleTransform; Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TV2L);
 begin
   inherited Create;
   MEngine := TBulletMovementEngine.Create;
@@ -3481,7 +3484,7 @@ end;
 
 constructor TBullet_Text.Create(AngleTransform_: TBullet_AngleTransform;
   Text_: SystemString; TextSize_: Integer; TextColor_: TDEColor;
-  Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TVec2List);
+  Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TV2L);
 begin
   inherited Create(AngleTransform_, Pos_, Ang_, MoveSpeed_, RollSpeed_, Path_);
   Text := Text_;
@@ -3509,7 +3512,7 @@ end;
 
 constructor TBullet_Text_OverlapShadow.Create(AngleTransform_: TBullet_AngleTransform;
   Text_: SystemString; TextSize_: Integer; TextColor_: TDEColor;
-  Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TVec2List);
+  Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TV2L);
 begin
   inherited Create(AngleTransform_,
     Text_, TextSize_, TextColor_,
@@ -3551,7 +3554,7 @@ end;
 
 constructor TBullet_Picture.Create(AngleTransform_: TBullet_AngleTransform;
   Picture_: TCore_Object; Sour_: TDERect; DestSize_: TDEVec; Alpha_: TDEFloat; Fit_: Boolean;
-  Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TVec2List);
+  Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TV2L);
 begin
   inherited Create(AngleTransform_, Pos_, Ang_, MoveSpeed_, RollSpeed_, Path_);
   Picture := Picture_;
@@ -3590,7 +3593,7 @@ end;
 
 constructor TBullet_Picture_OverlapShadow.Create(AngleTransform_: TBullet_AngleTransform;
   Picture_: TCore_Object; Sour_: TDERect; DestSize_: TDEVec; Alpha_: TDEFloat; Fit_: Boolean;
-  Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TVec2List);
+  Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TV2L);
 begin
   inherited Create(AngleTransform_,
     Picture_, Sour_, DestSize_, Alpha_, Fit_,
@@ -3637,7 +3640,7 @@ end;
 
 constructor TBullet_SequenceAnimation.Create(AngleTransform_: TBullet_AngleTransform;
   flag_: Variant; Picture_: TDETexture; CompleteTime_: Double; Looped_: Boolean; DestSize_: TDEVec; Alpha_: TDEFloat; Fit_: Boolean;
-  Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TVec2List);
+  Pos_: TDEVec; Ang_, MoveSpeed_, RollSpeed_: TGeoFloat; Path_: TV2L);
 begin
   inherited Create(AngleTransform_, Pos_, Ang_, MoveSpeed_, RollSpeed_, Path_);
   flag := flag_;
@@ -5854,9 +5857,9 @@ end;
 
 procedure TDrawEngine.DrawOutSideSmoothArrayLine(DotLine: Boolean; arry: TArrayVec2; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 var
-  pl: TVec2List;
+  pl: TV2L;
 begin
-  pl := TVec2List.Create;
+  pl := TV2L.Create;
   pl.AssignFromArrayV2(arry);
   DrawOutSideSmoothPL(DotLine, pl, ClosedLine, COLOR, LineWidth);
   disposeObject(pl);
@@ -5864,9 +5867,9 @@ end;
 
 procedure TDrawEngine.DrawOutSideSmoothArrayLineInScene(DotLine: Boolean; arry: TArrayVec2; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 var
-  pl: TVec2List;
+  pl: TV2L;
 begin
-  pl := TVec2List.Create;
+  pl := TV2L.Create;
   pl.AssignFromArrayV2(arry);
   DrawOutSideSmoothPLInScene(DotLine, pl, ClosedLine, COLOR, LineWidth);
   disposeObject(pl);
@@ -5874,9 +5877,9 @@ end;
 
 procedure TDrawEngine.DrawInSideSmoothArrayLine(DotLine: Boolean; arry: TArrayVec2; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 var
-  pl: TVec2List;
+  pl: TV2L;
 begin
-  pl := TVec2List.Create;
+  pl := TV2L.Create;
   pl.AssignFromArrayV2(arry);
   DrawInSideSmoothPL(DotLine, pl, ClosedLine, COLOR, LineWidth);
   disposeObject(pl);
@@ -5884,9 +5887,9 @@ end;
 
 procedure TDrawEngine.DrawInSideSmoothArrayLineInScene(DotLine: Boolean; arry: TArrayVec2; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 var
-  pl: TVec2List;
+  pl: TV2L;
 begin
-  pl := TVec2List.Create;
+  pl := TV2L.Create;
   pl.AssignFromArrayV2(arry);
   DrawInSideSmoothPLInScene(DotLine, pl, ClosedLine, COLOR, LineWidth);
   disposeObject(pl);
@@ -5894,9 +5897,9 @@ end;
 
 procedure TDrawEngine.DrawArrayLine(arry: TArrayVec2; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 var
-  pl: TVec2List;
+  pl: TV2L;
 begin
-  pl := TVec2List.Create;
+  pl := TV2L.Create;
   pl.AssignFromArrayV2(arry);
   DrawPL(pl, ClosedLine, COLOR, LineWidth);
   disposeObject(pl);
@@ -5904,19 +5907,19 @@ end;
 
 procedure TDrawEngine.DrawArrayLineInScene(arry: TArrayVec2; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 var
-  pl: TVec2List;
+  pl: TV2L;
 begin
-  pl := TVec2List.Create;
+  pl := TV2L.Create;
   pl.AssignFromArrayV2(arry);
   DrawPLInScene(pl, ClosedLine, COLOR, LineWidth);
   disposeObject(pl);
 end;
 
-procedure TDrawEngine.DrawOutSideSmoothPL(DotLine: Boolean; pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
+procedure TDrawEngine.DrawOutSideSmoothPL(DotLine: Boolean; pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 var
-  n: TVec2List;
+  n: TV2L;
 begin
-  n := TVec2List.Create;
+  n := TV2L.Create;
   if ClosedLine then
       pl.SplineSmoothOutSideClosed(n)
   else
@@ -5925,11 +5928,11 @@ begin
   disposeObject(n);
 end;
 
-procedure TDrawEngine.DrawOutSideSmoothPLInScene(DotLine: Boolean; pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
+procedure TDrawEngine.DrawOutSideSmoothPLInScene(DotLine: Boolean; pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 var
-  n: TVec2List;
+  n: TV2L;
 begin
-  n := TVec2List.Create;
+  n := TV2L.Create;
   if ClosedLine then
       pl.SplineSmoothOutSideClosed(n)
   else
@@ -5938,11 +5941,11 @@ begin
   disposeObject(n);
 end;
 
-procedure TDrawEngine.DrawInSideSmoothPL(DotLine: Boolean; pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
+procedure TDrawEngine.DrawInSideSmoothPL(DotLine: Boolean; pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 var
-  n: TVec2List;
+  n: TV2L;
 begin
-  n := TVec2List.Create;
+  n := TV2L.Create;
   if ClosedLine then
       pl.SplineSmoothInSideClosed(n)
   else
@@ -5951,11 +5954,11 @@ begin
   disposeObject(n);
 end;
 
-procedure TDrawEngine.DrawInSideSmoothPLInScene(DotLine: Boolean; pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
+procedure TDrawEngine.DrawInSideSmoothPLInScene(DotLine: Boolean; pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 var
-  n: TVec2List;
+  n: TV2L;
 begin
-  n := TVec2List.Create;
+  n := TV2L.Create;
   if ClosedLine then
       pl.SplineSmoothInSideClosed(n)
   else
@@ -5964,7 +5967,7 @@ begin
   disposeObject(n);
 end;
 
-procedure TDrawEngine.DrawPL(DotLine: Boolean; pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
+procedure TDrawEngine.DrawPL(DotLine: Boolean; pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 var
   i: Integer;
   t1, t2: TDEVec;
@@ -5991,7 +5994,7 @@ begin
     end;
 end;
 
-procedure TDrawEngine.DrawPLInScene(DotLine: Boolean; pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
+procedure TDrawEngine.DrawPLInScene(DotLine: Boolean; pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 var
   i: Integer;
   t1, t2: TDEVec;
@@ -6018,12 +6021,12 @@ begin
     end;
 end;
 
-procedure TDrawEngine.DrawPL(pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
+procedure TDrawEngine.DrawPL(pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 begin
   DrawPL(False, pl, ClosedLine, COLOR, LineWidth);
 end;
 
-procedure TDrawEngine.DrawPLInScene(pl: TVec2List; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
+procedure TDrawEngine.DrawPLInScene(pl: TV2L; ClosedLine: Boolean; COLOR: TDEColor; LineWidth: TDEFloat);
 var
   i: Integer;
   t1, t2: TDEVec;
@@ -6044,7 +6047,7 @@ begin
     end;
 end;
 
-procedure TDrawEngine.DrawPLInScene(pl: TVec2List; ClosedLine: Boolean; opt: TPolyDrawOption);
+procedure TDrawEngine.DrawPLInScene(pl: TV2L; ClosedLine: Boolean; opt: TPolyDrawOption);
 var
   i: Integer;
   t1, t2: TDEVec;
@@ -6421,7 +6424,7 @@ begin
   else
     begin
       { compute font scale size }
-      if lsiz[0] > bsiz[0] * 0.8 then
+      if (lsiz[0] - bsiz[0] * 0.8) > (lsiz[1] - bsiz[1] * 0.8) then
           L := L * (bsiz[0] * 0.8 / lsiz[0])
       else
           L := L * (bsiz[1] * 0.8 / lsiz[1]);
@@ -6457,6 +6460,11 @@ end;
 procedure TDrawEngine.DrawDotLineBox(r: TDERect; axis: TDEVec; Angle: TDEFloat; COLOR: TDEColor; LineWidth: TDEFloat);
 begin
   DrawDotLineBox(TV2Rect4.Init(r, axis, Angle), COLOR, LineWidth);
+end;
+
+procedure TDrawEngine.DrawDotLineBox(r: TDERect; Angle: TDEFloat; COLOR: TDEColor; LineWidth: TDEFloat);
+begin
+  DrawDotLineBox(TV2Rect4.Init(r, Angle), COLOR, LineWidth);
 end;
 
 procedure TDrawEngine.DrawDotLineBoxInScene(r: TDERect; axis: TDEVec; Angle: TDEFloat; COLOR: TDEColor; LineWidth: TDEFloat);
@@ -7203,7 +7211,7 @@ begin
     end;
 end;
 
-function TDrawEngine.DrawPicturePackingInScene(Input_: TMemoryPasAI_RasterList; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat; ShowBox: Boolean): TDERect;
+function TDrawEngine.DrawPicturePackingInScene(Input_: TMR_List; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat; ShowBox: Boolean): TDERect;
 var
   rp: TRectPacking;
   i: Integer;
@@ -7222,16 +7230,16 @@ begin
   disposeObject(rp);
 end;
 
-function TDrawEngine.DrawPicturePackingInScene(Input_: TMemoryPasAI_RasterList; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat): TDERect;
+function TDrawEngine.DrawPicturePackingInScene(Input_: TMR_List; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat): TDERect;
 begin
   Result := DrawPicturePackingInScene(Input_, Margins, destOffset, Alpha, True);
 end;
 
-function TDrawEngine.DrawPictureMatrixPackingInScene(Input_: TMemoryPasAI_Raster2DMatrix; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat; ShowBox: Boolean): TDERect;
+function TDrawEngine.DrawPictureMatrixPackingInScene(Input_: TMR_2D_Matrix; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat; ShowBox: Boolean): TDERect;
 var
   rp: TRectPacking;
   i, j: Integer;
-  L: TMemoryPasAI_RasterList;
+  L: TMR_List;
   tr: TRectPacking;
   r, rr: TDERect;
 begin
@@ -7263,6 +7271,63 @@ begin
       r := RectAdd(rp[i]^.Rect, destOffset);
       rr := DrawRectPackingInScene(tr, r[0], Alpha, False);
       DrawLabelBox(PFormat('%s %d', [tr.UserToken.Text, tr.Count]), 12, DEColor(1, 1, 1), SceneToScreen(r), DEColor(1, 0, 0), 1);
+      disposeObject(tr);
+
+      if i = 0 then
+          Result := rr
+      else
+          Result := BoundRect(Result, rr);
+    end;
+
+  disposeObject(rp);
+end;
+
+function TDrawEngine.DrawPictureMatrixPackingInScene(Input_: TMR_2D_Matrix; var output_: TMatrix_RectV2;
+  Packing_Style_1, Packing_Style_2: TRectPacking_Style; Margins: TDEFloat; destOffset: TDEVec; Alpha: TDEFloat; ShowBox: Boolean): TDERect;
+var
+  rp: TRectPacking;
+  i, j: Integer;
+  L: TMR_List;
+  tr: TRectPacking;
+  r, rr: TDERect;
+begin
+  Result := NULLRect;
+  if Input_.Count = 0 then
+      exit;
+
+  rp := TRectPacking.Create;
+  rp.Style := Packing_Style_1;
+  rp.Margins := Margins;
+
+  for i := 0 to Input_.Count - 1 do
+    begin
+      L := Input_[i];
+      if L.Count = 0 then
+          continue;
+      tr := TRectPacking.Create;
+      tr.Style := Packing_Style_2;
+      tr.Margins := 2;
+      tr.UserToken := L.UserToken;
+      for j := 0 to L.Count - 1 do
+          tr.Add(nil, L[j], L[j].BoundsRectV2);
+      tr.Build();
+      rp.Add(nil, tr, tr.GetBoundsBox);
+    end;
+  rp.Build();
+
+  // init output box
+  SetLength(output_, rp.Count);
+
+  for i := 0 to rp.Count - 1 do
+    begin
+      tr := rp[i]^.Data2 as TRectPacking;
+      r := RectAdd(rp[i]^.Rect, destOffset);
+      rr := DrawRectPackingInScene(tr, r[0], Alpha, False);
+      DrawLabelBox(PFormat('%s %d', [tr.UserToken.Text, tr.Count]), 12, DEColor(1, 1, 1), SceneToScreen(r), DEColor(1, 0, 0), 1);
+      // update output box
+      SetLength(output_[i], tr.Count);
+      for j := 0 to tr.Count - 1 do
+          output_[i, j] := RectAdd(tr[j]^.Rect, r[0]);
       disposeObject(tr);
 
       if i = 0 then

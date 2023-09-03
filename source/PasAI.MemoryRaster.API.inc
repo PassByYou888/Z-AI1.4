@@ -2,6 +2,14 @@
 { * memory Rasterization API                                                   * }
 { ****************************************************************************** }
 
+procedure Raster_Global_Parallel(parallel_: Boolean);
+begin
+  TMPasAI_Raster.Parallel := parallel_;
+  TPasAI_RasterVertex.Parallel := parallel_;
+  TMorphomatics.Parallel := parallel_;
+  TMorphologyBinaryzation.Parallel := parallel_;
+end;
+
 function ClampInt(const Value, IMin, IMax: Integer): Integer;
 begin
   if Value > IMax then

@@ -306,7 +306,7 @@ begin
   // 如果zdb2为打开模式,载入数据库索引,如果是创建的新数据库,该步骤会无效
   // Extract_Video_Data_Pool为hpc工作模式,可以通过调度超多的cpu内核来提升数据载入效率
   // Extract_Video_Data_Pool为保证数据条目一致性会在载入完成后,统一做一次序列化排列,具体细节可跟进去看
-  Video_DB.Extract_Video_Data_Pool(PasAI.Core.Get_Parallel_Granularity);
+  Video_DB.Extract_Video_Data_Pool(False, PasAI.Core.Get_Parallel_Granularity);
 end;
 
 procedure TZDB2_FFMPEG_Data_Marshal_Form.Build_Video_Input_Data(thSender: TCompute);

@@ -355,7 +355,6 @@ end;
 function TFFMPEG_Writer.EncodeRaster(raster: TMPasAI_Raster; var Updated: Integer): Boolean;
 var
   r: Integer;
-  tmp: TPasAI_Raster;
 begin
   Result := False;
   if FrameRGB = nil then
@@ -371,22 +370,20 @@ begin
   if AVPacket_Ptr = nil then
       exit;
 
-  tmp := TPasAI_Raster.Create;
   if (raster.Width <> FLastWidth) or (raster.Height <> FLastHeight) then
-      tmp.ZoomFrom(raster, FLastWidth, FLastHeight)
-  else
-      tmp.SetWorkMemory(raster);
+      raster.Zoom(FLastWidth, FLastHeight);
 
   Critical.Lock;
   try
     // FrameRGB
-    FrameRGB^.data[0] := @tmp.Bits^[0];
+    FrameRGB^.data[0] := @raster.Bits^[0];
     FrameRGB^.Width := Frame^.Width;
     FrameRGB^.Height := Frame^.Height;
     FrameRGB^.linesize[0] := Frame^.Width * 4;
 
     // transform BGRA to YV420
-    sws_scale(SWS_CTX,
+    sws_scale(
+    SWS_CTX,
       @FrameRGB^.data,
       @FrameRGB^.linesize,
       0,
@@ -432,7 +429,6 @@ begin
   finally
     AtomInc(FEncodeNum);
     Critical.UnLock;
-    DisposeObject(tmp);
   end;
 end;
 

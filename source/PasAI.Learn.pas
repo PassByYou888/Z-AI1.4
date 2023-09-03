@@ -33,6 +33,7 @@ type
   TLearnMemory = record
     m_in, m_out: TLVec;
     token: TPascalString;
+    data: TPascalString;
   end;
 
   TCandidate_Distance_ = record
@@ -53,13 +54,15 @@ type
     procedure Do_Build_Min_Max_Sum_Cache;
   public
     Name: U_String;
+    Weight: TLFloat;
     constructor Create;
-    procedure DoFree(var Data: PCandidate_Distance_); override;
-    procedure DoAdd(var Data: PCandidate_Distance_); override;
+    procedure DoFree(var data: PCandidate_Distance_); override;
+    procedure DoAdd(var data: PCandidate_Distance_); override;
     function Max_Distance: TLFloat;
     function Min_Distance: TLFloat;
     function Distance_Sum: TLFloat;
     function Distance_Mean: TLFloat;
+    function Distance_Weight_Mean: TLFloat;
     function Distance_Regression: TLFloat;
   end;
 
@@ -67,12 +70,15 @@ type
 
   TCandidate_Distance_Hash_Pool = class(TCandidate_Distance_Hash_Pool_Decl)
   private
+    Memory_Buffer: array of TLearnMemory;
+  private
     function Do_Sort_(var Left, Right: TCandidate_Distance_Hash_Pool_Decl.PPair_Pool_Value__): Integer;
     function Do_Inv_Sort_(var Left, Right: TCandidate_Distance_Hash_Pool_Decl.PPair_Pool_Value__): Integer;
     function Do_Sort_Min_Distance_(var Left, Right: TCandidate_Distance_Hash_Pool_Decl.PPair_Pool_Value__): Integer;
     function Do_Sort_Max_Distance_(var Left, Right: TCandidate_Distance_Hash_Pool_Decl.PPair_Pool_Value__): Integer;
   public
     Buff: TCandidate_Distance_Array;
+    constructor Create_New_Instance(pool_: TCandidate_Distance_Hash_Pool; free_pool_: Boolean);
     constructor Create(Buff_: TCandidate_Distance_Array; Filter_Min_, Filter_Max_: TLFloat); overload;
     constructor Create(Matrix_: TCandidate_Distance_Matrix; Filter_Min_, Filter_Max_: TLFloat); overload;
     destructor Destroy; override;
@@ -85,20 +91,21 @@ type
     function Get_Max_Mean_Pool(): TCandidate_Distance_Pool;
     function Get_Min_Distance_Pool(): TCandidate_Distance_Pool;
     function Get_Max_Distance_Pool(): TCandidate_Distance_Pool;
+    procedure Compute_Weight;
     procedure Sort_Mean();
     procedure Inv_Sort_Mean();
     procedure Sort_Min_Distance();
     procedure Sort_Max_Distance();
   end;
 
-  TLearn = class(TCore_InterfacedObject)
-  public type
-    TLearnKDT = record
-      K: TKDTree;
-    end;
+  TLearnKDT = record
+    K: TKDTree;
+  end;
 
-    PLearnKDT = ^TLearnKDT;
-    THideLayerDepth = (hld0, hld1, hld2);
+  PLearnKDT = ^TLearnKDT;
+  THideLayerDepth = (hld0, hld1, hld2);
+
+  TLearn = class(TCore_InterfacedObject)
   private
     FRandomNumber: Boolean;
     FInSize, FOutSize: TLInt;
@@ -116,8 +123,8 @@ type
     FUserData: Pointer;
     FUserObject: TCore_Object;
 
-    procedure KDInput(const IndexFor: NativeInt; var source: TKDTree_Source; const Data: Pointer);
-    procedure TokenInput(const IndexFor: NativeInt; var source: TKDTree_Source; const Data: Pointer);
+    procedure KDInput(const IndexFor: NativeInt; var source: TKDTree_Source; const data: Pointer);
+    procedure TokenInput(const IndexFor: NativeInt; var source: TKDTree_Source; const data: Pointer);
 
     procedure FreeLearnData;
     procedure CreateLearnData(const isTrainingTime: Boolean);
@@ -162,7 +169,9 @@ type
     property UserObject: TCore_Object read FUserObject write FUserObject;
 
     { * sampler * }
+    function AddMemory(const f_In, f_Out: TLVec; f_token, f_data: TPascalString): PLearnMemory; overload;
     function AddMemory(const f_In, f_Out: TLVec; f_token: TPascalString): PLearnMemory; overload;
+    function AddMemory(const f_In: TLVec; f_token, f_data: TPascalString): PLearnMemory; overload;
     function AddMemory(const f_In: TLVec; f_token: TPascalString): PLearnMemory; overload;
     function AddMemory(const f_In, f_Out: TLVec): PLearnMemory; overload;
     function AddMemory(const s_In, s_Out: TPascalString): PLearnMemory; overload;
@@ -318,6 +327,9 @@ function LMatrixCopy(const v: TLIMatrix): TLIMatrix; overload;
 function LMatrixCopy(const v: TLBMatrix): TLBMatrix; overload;
 function LVecInvert(const v: TLVec): TLVec;
 function LIVecInvert(const v: TLIVec): TLIVec;
+function LIVec(const s: TPascalString): TLIVec; overload;
+function LIVec(const veclen: TLInt; const VDef: TLInt): TLIVec; overload;
+function LIVec(const veclen: TLInt): TLIVec; overload;
 function LVec(): TLVec; overload;
 function LVec(const veclen: TLInt; const VDef: TLFloat): TLVec; overload;
 function LVec(const veclen: TLInt): TLVec; overload;
@@ -352,6 +364,10 @@ function LMinVec(const v: TLIMatrix): TLInt; overload;
 function LMaxVecIndex(const v: TLVec): TLInt;
 function LMinVecIndex(const v: TLVec): TLInt;
 function LDistance(const v1, v2: TLVec): TLFloat;
+function LMin_Distance(const v1, v2: TLVec): TLFloat; overload;
+function LMin_Distance(const v: TLVec; const M: TLMatrix): TLFloat; overload;
+function LMin_Distance(const M: TLMatrix; const v: TLVec): TLFloat; overload;
+function LMin_Distance(const M1, M2: TLMatrix): TLFloat; overload;
 function LHamming(const v1, v2: TLVec): TLInt; overload;
 function LHamming(const v1, v2: TLIVec): TLInt; overload;
 procedure LClampF(var v: TLFloat; const min_, max_: TLFloat); overload;
@@ -640,9 +656,9 @@ procedure RMatrixTRInverse(var a: TLMatrix; n: TLInt; IsUpper: Boolean; IsUnit: 
 procedure CMatrixTRInverse(var a: TLComplexMatrix; n: TLInt; IsUpper: Boolean; IsUnit: Boolean; var Info: TLInt; var Rep: TMatInvReport);
 
 { matrix rotations }
-procedure ApplyRotationsFromTheLeft(IsForward: Boolean; m1: TLInt; m2: TLInt; n1: TLInt; n2: TLInt;
+procedure ApplyRotationsFromTheLeft(IsForward: Boolean; M1: TLInt; M2: TLInt; n1: TLInt; n2: TLInt;
   const c: TLVec; const s: TLVec; var a: TLMatrix; var Work: TLVec);
-procedure ApplyRotationsFromTheRight(IsForward: Boolean; m1: TLInt; m2: TLInt; n1: TLInt; n2: TLInt;
+procedure ApplyRotationsFromTheRight(IsForward: Boolean; M1: TLInt; M2: TLInt; n1: TLInt; n2: TLInt;
   const c: TLVec; const s: TLVec; var a: TLMatrix; var Work: TLVec);
 procedure GenerateRotation(f: TLFloat; g: TLFloat; var cs: TLFloat; var sn: TLFloat; var r: TLFloat);
 

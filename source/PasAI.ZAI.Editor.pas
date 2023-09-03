@@ -16,6 +16,7 @@ uses Types, Variants,
   PasAI.Cadencer, PasAI.ListEngine, PasAI.TextDataEngine, PasAI.Notify, PasAI.Parsing, PasAI.Expression, PasAI.OpCode, PasAI.HashList.Templet,
   PasAI.ZDB.ObjectData_LIB, PasAI.ZDB, PasAI.ZDB.ItemStream_LIB,
   PasAI.UnicodeMixedLib, PasAI.Geometry2D, PasAI.Geometry3D, PasAI.DrawEngine,
+  PasAI.FastGBK, PasAI.GBK,
   PasAI.ZAI, PasAI.ZAI.Tech2022,
   PasAI.ZAI.Common;
 
@@ -50,7 +51,7 @@ type
     Owner: TEditorImageData;
     R: TRect;
     Token: U_String;
-    Part: TVec2List;
+    Part: TV2L;
     PrepareRaster: TDETexture;
     Sequence_Token: U_String;
     Sequence_Index: Integer;
@@ -63,6 +64,8 @@ type
     procedure LoadFromStream(stream: TMS64);
     procedure BuildJitter(rand: TRandom; imgL: TEditorImageDataList;
       SS_Raster_Width, SS_Raster_Height, XY_Offset_Scale_, Rotate_, Scale_: TGeoFloat; fit_: Boolean);
+    function IsOverlap: Boolean; overload;
+    function IsOverlap(Nearest_Distance_: TGeoFloat): Boolean; overload;
   end;
 
   TEditorGeometry = class(T2DPolygonGraph)
@@ -135,11 +138,11 @@ type
   TEditorDetectorDefine_Overlap = class(TEditorDetectorDefine_Overlap_Decl)
   public
     Owner: TEditorDetectorDefine_Overlap_Tool;
-    Convex_Hull: TVec2List;
+    Convex_Hull: TV2L;
     constructor Create(Owner_: TEditorDetectorDefine_Overlap_Tool);
     destructor Destroy; override;
     function CompareData(const Data_1, Data_2: TEditorDetectorDefine): Boolean; override;
-    function Compute_Convex_Hull(Extract_Box_: TGeoFloat): TVec2List;
+    function Compute_Convex_Hull(Extract_Box_: TGeoFloat): TV2L;
     function Compute_Overlap(box: TRectV2; Extract_Box_: TGeoFloat; img: TEditorImageData): Integer;
     function Build_Image(FitX, FitY: Integer; Edge_: TGeoFloat; EdgeColor_: TRColor; Sigma_: TGeoFloat): TEditorImageData;
   end;
@@ -174,6 +177,9 @@ type
     function OP_Image_IsTest(var Param: TOpParam): Variant;
     function OP_Image_FileInfo(var Param: TOpParam): Variant;
     function OP_Image_FindLabel(var Param: TOpParam): Variant;
+    function OP_Image_MD5(var Param: TOpParam): Variant;
+    function OP_Image_Gradient_L16_MD5(var Param: TOpParam): Variant;
+    function OP_Image_Random_Str(var Param: TOpParam): Variant;
     { condition on detector }
     function OP_Detector_GetLabel(var Param: TOpParam): Variant;
     { process on image }
@@ -198,6 +204,7 @@ type
     { set all token }
     function OP_Detector_SetLabel(var Param: TOpParam): Variant;
     { process on detector }
+    function OP_Detector_ClearNoDefine(var Param: TOpParam): Variant;
     function OP_Detector_NoMatchClear(var Param: TOpParam): Variant;
     function OP_Detector_ClearDetector(var Param: TOpParam): Variant;
     function OP_Detector_DeleteDetector(var Param: TOpParam): Variant;
@@ -207,12 +214,18 @@ type
     function OP_Detector_Reset_Sequence(var Param: TOpParam): Variant;
     function OP_Detector_SetLabelFromArea(var Param: TOpParam): Variant;
     function OP_Detector_RemoveOutEdge(var Param: TOpParam): Variant;
+    function OP_Detector_RemoveOverlap(var Param: TOpParam): Variant;
     { process on geometry }
     function OP_Geometry_ClearGeometry(var Param: TOpParam): Variant;
     { process on Segmentation mask }
     function OP_SegmentationMask_ClearSegmentationMask(var Param: TOpParam): Variant;
     { process on all label }
     function OP_Replace(var Param: TOpParam): Variant;
+    function OP_S2PY(var Param: TOpParam): Variant;
+    function OP_S2PY2(var Param: TOpParam): Variant;
+    function OP_S2T(var Param: TOpParam): Variant;
+    function OP_S2H(var Param: TOpParam): Variant;
+    function OP_T2S(var Param: TOpParam): Variant;
   public
     DetectorDefineList: TEditorDetectorDefineList;
     FileInfo: U_String;
@@ -283,7 +296,8 @@ type
 
     procedure Add(imgData: TEditorImageData);
     procedure Update_Index;
-    procedure Rebuild_Draw_Box_Sort;
+    procedure Rebuild_Draw_Box_Sort(style: TRectPacking_Style); overload;
+    procedure Rebuild_Draw_Box_Sort(); overload;
     function Build_Token_Analysis: TEditor_Num_Hash_Pool;
 
     function GetImageDataFromFileName(FileName: U_String; Width, Height: Integer): TEditorImageData;
@@ -370,6 +384,7 @@ var
   __repeat__: TEditor_Num_Hash_Pool_Decl.TRepeat___;
   det, geo, seg: TPascalStringList;
   n, det_S, geo_S, seg_S: U_String;
+  i, j, LNum: Integer;
 begin
   Result := '';
   if num <= 0 then
@@ -403,21 +418,97 @@ begin
       end;
   until not __repeat__.Next;
 
-  det_S := det.AsText;
-  det_S := umlReplace(det_S.DeleteChar(#13), #10, #32'+'#32, False, False);
+  // build detector info
+  if det.Count > 0 then
+    begin
+      det.Sort();
+      n := det[0];
+      j := 1;
+      LNum := 0;
+      for i := 1 to det.Count - 1 do
+        begin
+          n.Append(' + ' + det[i]);
+          inc(j, det[i].L + 3);
+          if j > 100 then
+            begin
+              n.Append(#10);
+              j := 0;
+              inc(LNum);
+              if LNum > 10 then
+                begin
+                  n.Append('Unable to display....');
+                  break;
+                end;
+            end;
+        end;
+    end
+  else
+      n := '';
+  det_S := n;
   if det_S.L = 0 then
       det_S := 'No Label';
 
-  geo_S := geo.AsText;
-  geo_S := umlReplace(geo_S.DeleteChar(#13), #10, #32'+'#32, False, False);
+  // build geometry info
+  if geo.Count > 0 then
+    begin
+      geo.Sort();
+      n := geo[0];
+      j := 1;
+      LNum := 0;
+      for i := 1 to geo.Count - 1 do
+        begin
+          n.Append(' + ' + geo[i]);
+          inc(j, geo[i].L + 3);
+          if j > 100 then
+            begin
+              n.Append(#10);
+              j := 0;
+              inc(LNum);
+              if LNum > 10 then
+                begin
+                  n.Append('Unable to display....');
+                  break;
+                end;
+            end;
+        end;
+    end
+  else
+      n := '';
+  geo_S := n;
   if geo_S.L = 0 then
       geo_S := 'No Label';
 
-  seg_S := seg.AsText;
-  seg_S := umlReplace(seg_S.DeleteChar(#13), #10, #32'+'#32, False, False);
+  // build segmentation info
+  if seg.Count > 0 then
+    begin
+      seg.Sort();
+      n := seg[0];
+      j := 1;
+      LNum := 0;
+      for i := 1 to seg.Count - 1 do
+        begin
+          n.Append(' + ' + seg[i]);
+          inc(j, seg[i].L + 3);
+          if j > 100 then
+            begin
+              n.Append(#10);
+              j := 0;
+              inc(LNum);
+              if LNum > 10 then
+                begin
+                  n.Append('Unable to display....');
+                  break;
+                end;
+            end;
+        end;
+    end
+  else
+      n := '';
+  seg_S := n;
   if seg_S.L = 0 then
       seg_S := 'No Label';
 
+  // done
   Result := PFormat(
     'detector(%d) = %s'#13#10'geometry(%d) = %s'#13#10'segmentation(%d) = %s',
     [det.Count, det_S.Text, geo.Count, geo_S.Text, seg.Count, seg_S.Text]);
@@ -436,7 +527,7 @@ begin
   Owner := Owner_;
   R := Types.Rect(0, 0, 0, 0);
   Token := '';
-  Part := TVec2List.Create;
+  Part := TV2L.Create;
   PrepareRaster := TDrawEngine.NewTexture;
   Sequence_Token := '';
   Sequence_Index := -1;
@@ -569,6 +660,34 @@ begin
   LockObject(imgL);
   imgL.Add(img);
   UnLockObject(imgL);
+end;
+
+function TEditorDetectorDefine.IsOverlap: Boolean;
+var
+  i: Integer;
+  r2: TRectV2;
+begin
+  Result := False;
+  if Owner = nil then
+      exit;
+  r2 := RectV2(R);
+  for i := 0 to Owner.DetectorDefineList.Count - 1 do
+    if (Owner.DetectorDefineList[i] <> self) and Rect_Overlap_or_Intersect(r2, RectV2(Owner.DetectorDefineList[i].R)) then
+        exit(True);
+end;
+
+function TEditorDetectorDefine.IsOverlap(Nearest_Distance_: TGeoFloat): Boolean;
+var
+  i: Integer;
+  r2: TRectV2;
+begin
+  Result := False;
+  if Owner = nil then
+      exit;
+  r2 := RectEdge(RectV2(R), Nearest_Distance_);
+  for i := 0 to Owner.DetectorDefineList.Count - 1 do
+    if (Owner.DetectorDefineList[i] <> self) and Rect_Overlap_or_Intersect(r2, RectEdge(RectV2(Owner.DetectorDefineList[i].R), Nearest_Distance_)) then
+        exit(True);
 end;
 
 constructor TEditorGeometry.Create;
@@ -1004,9 +1123,9 @@ begin
           Result.Raster.Pixel[i, j] := buildFG_color;
   Result.PickedPoint := Result.Raster.FindNearColor(buildFG_color, Owner.Raster.Centre);
 
-  LockObject(Self);
+  LockObject(self);
   Add(Result);
-  UnLockObject(Self);
+  UnLockObject(self);
 end;
 
 function TEditorSegmentationMaskList.BuildSegmentationMask(geo: TEditorGeometry; buildBG_color, buildFG_color: TRColor): TEditorSegmentationMask;
@@ -1066,9 +1185,9 @@ begin
 {$ENDIF Parallel}
   SegMask.PickedPoint := SegMask.Raster.FindNearColor(buildFG_color, Owner.Raster.Centre);
 
-  LockObject(Self);
+  LockObject(self);
   Add(SegMask);
-  UnLockObject(Self);
+  UnLockObject(self);
 
   Result := SegMask;
 end;
@@ -1077,7 +1196,7 @@ procedure TEditorSegmentationMaskList.RemoveGeometrySegmentationMask;
 var
   i: Integer;
 begin
-  LockObject(Self);
+  LockObject(self);
   { remove geometry data source }
   i := 0;
   while i < Count do
@@ -1090,7 +1209,7 @@ begin
       else
           inc(i);
     end;
-  UnLockObject(Self);
+  UnLockObject(self);
 end;
 
 procedure TEditorSegmentationMaskList.RebuildGeometrySegmentationMask(buildBG_color, buildFG_color: TRColor);
@@ -1158,7 +1277,7 @@ constructor TEditorDetectorDefine_Overlap.Create(Owner_: TEditorDetectorDefine_O
 begin
   inherited Create;
   Owner := Owner_;
-  Convex_Hull := TVec2List.Create;
+  Convex_Hull := TV2L.Create;
 end;
 
 destructor TEditorDetectorDefine_Overlap.Destroy;
@@ -1172,18 +1291,19 @@ begin
   Result := Data_1 = Data_2;
 end;
 
-function TEditorDetectorDefine_Overlap.Compute_Convex_Hull(Extract_Box_: TGeoFloat): TVec2List;
+function TEditorDetectorDefine_Overlap.Compute_Convex_Hull(Extract_Box_: TGeoFloat): TV2L;
 var
-  L: TVec2List;
+  L: TV2L;
 begin
   Convex_Hull.Clear;
-  L := TVec2List.Create;
+  L := TV2L.Create;
   if num > 0 then
     with Repeat_ do
       repeat
           L.AddRectangle(RectEdge(RectV2(Queue^.Data.R), Extract_Box_));
       until not Next;
   L.ConvexHull(Convex_Hull);
+  DisposeObject(L);
   Result := Convex_Hull;
 end;
 
@@ -1314,7 +1434,7 @@ begin
       DetDef := img.DetectorDefineList[i];
       if not Found_Overlap(DetDef) then
         begin
-          tmp := TEditorDetectorDefine_Overlap.Create(Self);
+          tmp := TEditorDetectorDefine_Overlap.Create(self);
           inc(Result, tmp.Compute_Overlap(RectV2(DetDef.R), Extract_Box_, img));
           Add(tmp);
         end;
@@ -1331,7 +1451,7 @@ begin
   if FOP_RT <> nil then
       exit;
   FOP_RT := TOpCustomRunTime.Create;
-  FOP_RT.UserObject := Self;
+  FOP_RT.UserObject := self;
 
   { condition on image }
   FOP_RT.RegOpM('Index', 'Index(): Image Index', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_GetIndex)^.Category := 'AI Editor';
@@ -1353,6 +1473,12 @@ begin
   FOP_RT.RegOpM('FileInfo', 'FileInfo(): image file info', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_FileInfo)^.Category := 'AI Editor';
 
   FOP_RT.RegOpM('FindAllLabel', 'FindAllLabel(filter): num; return found label(det,geo,seg) num > 0', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_FindLabel)^.Category := 'AI Editor';
+
+  FOP_RT.RegOpM('FindAllLabel', 'FindAllLabel(filter): num; return found label(det,geo,seg) num > 0', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_FindLabel)^.Category := 'AI Editor';
+  FOP_RT.RegOpM('MD5', 'MD5(): return rasterization md5', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_MD5)^.Category := 'AI Editor';
+  FOP_RT.RegOpM('Gradient_MD5', 'Gradient_MD5(): return rasterization Level 16 Gradient md5', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_Gradient_L16_MD5)^.Category := 'AI Editor';
+  FOP_RT.RegOpM('Random_Str', 'Random_Str(): return only one random string.', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_Random_Str)^.Category := 'AI Editor';
+  FOP_RT.RegOpM('RandomStr', 'RandomStr(): return only one random string.', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_Random_Str)^.Category := 'AI Editor';
 
   { condition on detector }
   FOP_RT.RegOpM('Label', 'Label(name): num; return Label num', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_GetLabel)^.Category := 'AI Editor';
@@ -1407,6 +1533,7 @@ begin
   FOP_RT.RegOpM('DefLabel', 'DefLabel(newLabel name): new Label name', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_SetLabel)^.Category := 'AI Editor';
   FOP_RT.RegOpM('DefineLabel', 'DefineLabel(newLabel name): new Label name', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_SetLabel)^.Category := 'AI Editor';
 
+  FOP_RT.RegOpM('RemoveNoDefineDetector', 'RemoveNoDefineDetector(): clean detector box from no define.', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_ClearNoDefine)^.Category := 'AI Editor';
   FOP_RT.RegOpM('RemoveNoMatchDetector', 'RemoveNoMatchDetector(label): clean detector box from none match', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_NoMatchClear)^.Category := 'AI Editor';
   FOP_RT.RegOpM('ClearDetector', 'ClearDetector(): clean detector box', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_ClearDetector)^.Category := 'AI Editor';
   FOP_RT.RegOpM('ClearDet', 'ClearDet(): clean detector box', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_ClearDetector)^.Category := 'AI Editor';
@@ -1425,6 +1552,7 @@ begin
   FOP_RT.RegOpM('ResetSequence', 'ResetSequence(): reset sequence data from detector', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_Reset_Sequence)^.Category := 'AI Editor';
   FOP_RT.RegOpM('SetLabelFromArea', 'SetLabelFromArea(minArea, maxArea, label): set label from area', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_SetLabelFromArea)^.Category := 'AI Editor';
   FOP_RT.RegOpM('RemoveOutEdgeBox', 'RemoveOutEdgeBox(): remove box from out edge/intersect edge', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_RemoveOutEdge)^.Category := 'AI Editor';
+  FOP_RT.RegOpM('RemoveOverlap', 'RemoveOverlap() or RemoveOverlap(Distance): remove overlap box', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_RemoveOverlap)^.Category := 'AI Editor';
 
   { process on geometry }
   FOP_RT.RegOpM('ClearGeometry', 'ClearGeometry(): clean geometry', {$IFDEF FPC}@{$ENDIF FPC}OP_Geometry_ClearGeometry)^.Category := 'AI Editor';
@@ -1440,9 +1568,15 @@ begin
 
   FOP_RT.RegOpM('Replace', 'Replace(OldPattern, NewPattern): replace detector, geometry, segment label', {$IFDEF FPC}@{$ENDIF FPC}OP_Replace)^.Category := 'AI Editor';
 
+  FOP_RT.RegOpM('S2PY', 'S2PY(): FastGBK translation Simplified of Pinyin', {$IFDEF FPC}@{$ENDIF FPC}OP_S2PY)^.Category := 'AI Editor';
+  FOP_RT.RegOpM('S2PY2', 'S2PY2(): GBK translation Simplified of Pinyin', {$IFDEF FPC}@{$ENDIF FPC}OP_S2PY2)^.Category := 'AI Editor';
+  FOP_RT.RegOpM('S2T', 'S2T(): Simplified to Traditional', {$IFDEF FPC}@{$ENDIF FPC}OP_S2T)^.Category := 'AI Editor';
+  FOP_RT.RegOpM('S2H', 'S2H(): Simplified to Hongkong Traditional (built-in vocabulary conversion)', {$IFDEF FPC}@{$ENDIF FPC}OP_S2H)^.Category := 'AI Editor';
+  FOP_RT.RegOpM('T2S', 'T2S(): Traditional to Simplified (built-in vocabulary conversion)', {$IFDEF FPC}@{$ENDIF FPC}OP_T2S)^.Category := 'AI Editor';
+
   { external image processor }
   if Assigned(On_Editor_Script_RegisterProc) then
-      On_Editor_Script_RegisterProc(Self, FOP_RT);
+      On_Editor_Script_RegisterProc(self, FOP_RT);
 end;
 
 function TEditorImageData.OP_Image_GetIndex(var Param: TOpParam): Variant;
@@ -1511,6 +1645,42 @@ begin
           inc(num);
     end;
   Result := num > 0;
+end;
+
+function TEditorImageData.OP_Image_MD5(var Param: TOpParam): Variant;
+begin
+  Result := umlMD5ToStr(Raster.GetMD5).Text;
+end;
+
+function TEditorImageData.OP_Image_Gradient_L16_MD5(var Param: TOpParam): Variant;
+begin
+  Result := umlMD5ToStr(Raster.Get_Gradient_L16_MD5).Text;
+end;
+
+function TEditorImageData.OP_Image_Random_Str(var Param: TOpParam): Variant;
+type
+  TDecode_Data_ = packed record
+    d: TDateTime;
+    i64: Int64;
+    i32: Integer;
+    MT_ID: Cardinal;
+    TK: TTimeTick;
+    MD5: TMD5;
+  end;
+var
+  R: TDecode_Data_;
+begin
+  TCompute.Sleep(1);
+  with R do
+    begin
+      d := umlNow();
+      i64 := TMT19937.Rand64;
+      i32 := TMT19937.Rand32;
+      MT_ID := MainInstance;
+      TK := GetTimeTick();
+      MD5 := Raster.GetMD5;
+    end;
+  Result := umlMD5String(@R, SizeOf(TDecode_Data_)).Text;
 end;
 
 function TEditorImageData.OP_Detector_GetLabel(var Param: TOpParam): Variant;
@@ -1797,6 +1967,26 @@ begin
   Result := True;
 end;
 
+function TEditorImageData.OP_Detector_ClearNoDefine(var Param: TOpParam): Variant;
+var
+  i: Integer;
+  det: TEditorDetectorDefine;
+begin
+  i := 0;
+  while i < DetectorDefineList.Count do
+    begin
+      det := DetectorDefineList[i];
+      if det.Token = '' then
+        begin
+          DetectorDefineList.Delete(i);
+          DisposeObject(det);
+        end
+      else
+          inc(i);
+    end;
+  Result := True;
+end;
+
 function TEditorImageData.OP_Detector_NoMatchClear(var Param: TOpParam): Variant;
 var
   i: Integer;
@@ -1872,33 +2062,55 @@ var
   procedure QuickSortList(var SortList: TDetArry; L, R: Integer);
   var
     i, j: Integer;
-    p, t: TEditorDetectorDefine;
+    p, tmp: TEditorDetectorDefine;
   begin
-    repeat
-      i := L;
-      j := R;
-      p := SortList[(L + R) shr 1];
-      repeat
-        while ListSortCompare(SortList[i], p) < 0 do
-            inc(i);
-        while ListSortCompare(SortList[j], p) > 0 do
-            dec(j);
-        if i <= j then
-          begin
-            if i <> j then
+    if L < R then
+      begin
+        repeat
+          if (R - L) = 1 then
+            begin
+              if ListSortCompare(SortList[L], SortList[R]) > 0 then
+                begin
+                  tmp := SortList[L];
+                  SortList[L] := SortList[R];
+                  SortList[R] := tmp;
+                end;
+              break;
+            end;
+          i := L;
+          j := R;
+          p := SortList[(L + R) shr 1];
+          repeat
+            while ListSortCompare(SortList[i], p) < 0 do
+                inc(i);
+            while ListSortCompare(SortList[j], p) > 0 do
+                dec(j);
+            if i <= j then
               begin
-                t := SortList[i];
-                SortList[i] := SortList[j];
-                SortList[j] := t;
+                if i <> j then
+                  begin
+                    tmp := SortList[i];
+                    SortList[i] := SortList[j];
+                    SortList[j] := tmp;
+                  end;
+                inc(i);
+                dec(j);
               end;
-            inc(i);
-            dec(j);
-          end;
-      until i > j;
-      if L < j then
-          QuickSortList(SortList, L, j);
-      L := i;
-    until i >= R;
+          until i > j;
+          if (j - L) > (R - i) then
+            begin
+              if i < R then
+                  QuickSortList(SortList, i, R);
+              R := j;
+            end
+          else
+            begin
+              if L < j then
+                  QuickSortList(SortList, L, j);
+              L := i;
+            end;
+        until L >= R;
+      end;
   end;
 
 var
@@ -2021,6 +2233,37 @@ begin
   Result := True;
 end;
 
+function TEditorImageData.OP_Detector_RemoveOverlap(var Param: TOpParam): Variant;
+var
+  L: TEditorDetectorDefineList;
+  i: Integer;
+begin
+  L := TEditorDetectorDefineList.Create;
+
+  if length(Param) > 0 then
+    begin
+      for i := DetectorDefineList.Count - 1 downto 0 do
+        if DetectorDefineList[i].IsOverlap(Param[0]) then
+          begin
+            L.Add(DetectorDefineList[i]);
+            DetectorDefineList.Delete(i);
+          end;
+    end
+  else
+    begin
+      for i := DetectorDefineList.Count - 1 downto 0 do
+        if DetectorDefineList[i].IsOverlap then
+          begin
+            L.Add(DetectorDefineList[i]);
+            DetectorDefineList.Delete(i);
+          end;
+    end;
+
+  for i := 0 to L.Count - 1 do
+      DisposeObject(L[i]);
+  DisposeObject(L);
+end;
+
 function TEditorImageData.OP_Geometry_ClearGeometry(var Param: TOpParam): Variant;
 var
   i: Integer;
@@ -2064,6 +2307,106 @@ begin
   Result := True;
 end;
 
+function TEditorImageData.OP_S2PY(var Param: TOpParam): Variant;
+var
+  i: Integer;
+begin
+  for i := 0 to DetectorDefineList.Count - 1 do
+    begin
+      DetectorDefineList[i].Sequence_Token := FastPYNoSpace(DetectorDefineList[i].Sequence_Token.Text).Text;
+      DetectorDefineList[i].Token := FastPYNoSpace(DetectorDefineList[i].Token.Text).Text;
+    end;
+  for i := 0 to GeometryList.Count - 1 do
+    begin
+      GeometryList[i].Token := FastPYNoSpace(GeometryList[i].Token.Text).Text;
+    end;
+  for i := 0 to SegmentationMaskList.Count - 1 do
+    begin
+      SegmentationMaskList[i].Token := FastPYNoSpace(SegmentationMaskList[i].Token.Text).Text;
+    end;
+  Result := True;
+end;
+
+function TEditorImageData.OP_S2PY2(var Param: TOpParam): Variant;
+var
+  i: Integer;
+begin
+  for i := 0 to DetectorDefineList.Count - 1 do
+    begin
+      DetectorDefineList[i].Sequence_Token := PyNoSpace(DetectorDefineList[i].Sequence_Token.Text).Text;
+      DetectorDefineList[i].Token := PyNoSpace(DetectorDefineList[i].Token.Text).Text;
+    end;
+  for i := 0 to GeometryList.Count - 1 do
+    begin
+      GeometryList[i].Token := PyNoSpace(GeometryList[i].Token.Text).Text;
+    end;
+  for i := 0 to SegmentationMaskList.Count - 1 do
+    begin
+      SegmentationMaskList[i].Token := PyNoSpace(SegmentationMaskList[i].Token.Text).Text;
+    end;
+  Result := True;
+end;
+
+function TEditorImageData.OP_S2T(var Param: TOpParam): Variant;
+var
+  i: Integer;
+begin
+  for i := 0 to DetectorDefineList.Count - 1 do
+    begin
+      DetectorDefineList[i].Sequence_Token := S2T(DetectorDefineList[i].Sequence_Token.Text).Text;
+      DetectorDefineList[i].Token := S2T(DetectorDefineList[i].Token.Text).Text;
+    end;
+  for i := 0 to GeometryList.Count - 1 do
+    begin
+      GeometryList[i].Token := S2T(GeometryList[i].Token.Text).Text;
+    end;
+  for i := 0 to SegmentationMaskList.Count - 1 do
+    begin
+      SegmentationMaskList[i].Token := S2T(SegmentationMaskList[i].Token.Text).Text;
+    end;
+  Result := True;
+end;
+
+function TEditorImageData.OP_S2H(var Param: TOpParam): Variant;
+var
+  i: Integer;
+begin
+  for i := 0 to DetectorDefineList.Count - 1 do
+    begin
+      DetectorDefineList[i].Sequence_Token := S2HK(DetectorDefineList[i].Sequence_Token.Text).Text;
+      DetectorDefineList[i].Token := S2HK(DetectorDefineList[i].Token.Text).Text;
+    end;
+  for i := 0 to GeometryList.Count - 1 do
+    begin
+      GeometryList[i].Token := S2HK(GeometryList[i].Token.Text).Text;
+    end;
+  for i := 0 to SegmentationMaskList.Count - 1 do
+    begin
+      SegmentationMaskList[i].Token := S2HK(SegmentationMaskList[i].Token.Text).Text;
+    end;
+  Result := True;
+end;
+
+function TEditorImageData.OP_T2S(var Param: TOpParam): Variant;
+var
+  i: Integer;
+begin
+  for i := 0 to DetectorDefineList.Count - 1 do
+    begin
+      DetectorDefineList[i].Sequence_Token := T2S(DetectorDefineList[i].Sequence_Token.Text).Text;
+      DetectorDefineList[i].Token := T2S(DetectorDefineList[i].Token.Text).Text;
+    end;
+  for i := 0 to GeometryList.Count - 1 do
+    begin
+      GeometryList[i].Token := T2S(GeometryList[i].Token.Text).Text;
+    end;
+  for i := 0 to SegmentationMaskList.Count - 1 do
+    begin
+      SegmentationMaskList[i].Token := T2S(SegmentationMaskList[i].Token.Text).Text;
+    end;
+  Result := True;
+end;
+
 constructor TEditorImageData.Create;
 begin
   inherited Create;
@@ -2073,9 +2416,9 @@ begin
   Raster := TDrawEngine.NewTexture;
   RasterDrawRect := RectV2(0, 0, 0, 0);
   GeometryList := TEditorGeometryList.Create;
-  GeometryList.Owner := Self;
+  GeometryList.Owner := self;
   SegmentationMaskList := TEditorSegmentationMaskList.Create;
-  SegmentationMaskList.Owner := Self;
+  SegmentationMaskList.Owner := self;
   FOP_RT := nil;
   FOP_RT_RunDeleted := False;
   FOP_RT_Run_Add_Image_List := TEditorImageDataList_Decl.Create;
@@ -2710,7 +3053,7 @@ begin
       m64 := TMS64.Create;
       de.Reader.ReadStream(m64);
       m64.Position := 0;
-      DetDef := TEditorDetectorDefine.Create(Self);
+      DetDef := TEditorDetectorDefine.Create(self);
       DetDef.LoadFromStream(m64);
       DisposeObject(m64);
       DetDef.FIndex := DetectorDefineList.Add(DetDef);
@@ -2839,7 +3182,7 @@ begin
       m64 := TMS64.Create;
       de.Reader.ReadStream(m64);
       m64.Position := 0;
-      DetDef := TEditorDetectorDefine.Create(Self);
+      DetDef := TEditorDetectorDefine.Create(self);
       if m64.Size > 0 then
           DetDef.LoadFromStream(m64);
       DisposeObject(m64);
@@ -2938,7 +3281,7 @@ begin
           ai_img.DetectorDefineList[i].SaveToStream(m64);
           m64.Position := 0;
 
-          editor_DetDef := TEditorDetectorDefine.Create(Self);
+          editor_DetDef := TEditorDetectorDefine.Create(self);
           DetectorDefineList.Add(editor_DetDef);
           editor_DetDef.LoadFromStream(m64);
           DisposeObject(m64);
@@ -3007,7 +3350,7 @@ begin
           ai_img.DetectorDefineList[i].SaveToStream(m64);
           m64.Position := 0;
 
-          editor_DetDef := TEditorDetectorDefine.Create(Self);
+          editor_DetDef := TEditorDetectorDefine.Create(self);
           DetectorDefineList.Add(editor_DetDef);
           editor_DetDef.LoadFromStream(m64);
           DisposeObject(m64);
@@ -3086,7 +3429,7 @@ begin
       Items[i].FIndex := i;
 end;
 
-procedure TEditorImageDataList.Rebuild_Draw_Box_Sort;
+procedure TEditorImageDataList.Rebuild_Draw_Box_Sort(style: TRectPacking_Style);
 var
   rp: TRectPacking;
   imgData: TEditorImageData;
@@ -3100,6 +3443,7 @@ begin
 
   DoStatus('prepare sort.', []);
   rp := TRectPacking.Create;
+  rp.style := style;
 
   for i := 0 to Count - 1 do
     begin
@@ -3119,6 +3463,11 @@ begin
 
   DisposeObject(rp);
   DoStatus('sort done.', []);
+end;
+
+procedure TEditorImageDataList.Rebuild_Draw_Box_Sort;
+begin
+  Rebuild_Draw_Box_Sort(TRectPacking_Style.rsDynamic);
 end;
 
 function TEditorImageDataList.Build_Token_Analysis: TEditor_Num_Hash_Pool;
@@ -3427,9 +3776,9 @@ var
     imgData: TEditorImageData;
   begin
     m64 := TMS64.Create;
-    LockObject(Self);
+    LockObject(self);
     imgData := Items[pass];
-    UnLockObject(Self);
+    UnLockObject(self);
     imgData.SaveToStream(m64, SaveImg, PasAI_RasterSave_);
     tmpBuffer[pass] := m64;
   end;
@@ -3444,9 +3793,9 @@ var
     for pass := 0 to Count - 1 do
       begin
         m64 := TMS64.Create;
-        LockObject(Self);
+        LockObject(self);
         imgData := Items[pass];
-        UnLockObject(Self);
+        UnLockObject(self);
         imgData.SaveToStream(m64, SaveImg, PasAI_RasterSave_);
         tmpBuffer[pass] := m64;
       end;
@@ -3483,9 +3832,9 @@ begin
       imgData: TEditorImageData;
     begin
       m64 := TMS64.Create;
-      LockObject(Self);
+      LockObject(self);
       imgData := Items[pass];
-      UnLockObject(Self);
+      UnLockObject(self);
       imgData.SaveToStream(m64, SaveImg, PasAI_RasterSave_);
       tmpBuffer[pass] := m64;
     end);
@@ -3650,9 +3999,9 @@ var
     imgData: TEditorImageData;
   begin
     m64 := TMS64.Create;
-    LockObject(Self);
+    LockObject(self);
     imgData := Items[pass];
-    UnLockObject(Self);
+    UnLockObject(self);
     imgData.SaveToStream_AI(m64, RasterSaveMode);
     tmpBuffer[pass] := m64;
   end;
@@ -3667,9 +4016,9 @@ var
     for pass := 0 to Count - 1 do
       begin
         m64 := TMS64.Create;
-        LockObject(Self);
+        LockObject(self);
         imgData := Items[pass];
-        UnLockObject(Self);
+        UnLockObject(self);
         imgData.SaveToStream_AI(m64, RasterSaveMode);
         tmpBuffer[pass] := m64;
       end;
@@ -3703,9 +4052,9 @@ begin
       imgData: TEditorImageData;
     begin
       m64 := TMS64.Create;
-      LockObject(Self);
+      LockObject(self);
       imgData := Items[pass];
-      UnLockObject(Self);
+      UnLockObject(self);
       imgData.SaveToStream_AI(m64, RasterSaveMode);
       tmpBuffer[pass] := m64;
     end);

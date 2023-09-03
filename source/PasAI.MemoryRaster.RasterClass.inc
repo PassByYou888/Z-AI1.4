@@ -489,8 +489,11 @@ begin
   FIsChanged := False;
   FDrawEngineMap := nil;
 
+  FSerialized_Read_History_Ptr := nil;
+  FSerialized_Write_History_Ptr := nil;
   FSerialized_Engine := nil;
-  FMemorySerializedPosition := -1;
+  FSerialized_ID := -1;
+  FSerialized_Size := 0;
   FActivted := True;
   FActiveTimeTick := 0;
 
@@ -553,11 +556,11 @@ end;
 
 function TMPasAI_Raster.SerializedAndRecycleMemory(RSeri: TPasAI_RasterSerialized): Int64;
 begin
-  if (FSerialized_Engine <> nil) and (FSerialized_Engine <> RSeri) and empty() then
+  if (FSerialized_Engine <> nil) and (FSerialized_Engine <> RSeri) and empty() then // check instance
       UnserializedMemory();
 
   if FSerialized_Engine <> RSeri then
-      Safe_ResetSerialized;
+      Safe_ResetSerialized; // remove old Serialized_Engine
 
   FSerialized_Engine := RSeri;
   if FSerialized_Engine <> nil then
@@ -590,6 +593,25 @@ begin
       Result := 0;
 end;
 
+function TMPasAI_Raster.Is_Serialized(): Boolean;
+begin
+  Result := (FSerialized_Engine <> nil) and (FSerialized_ID >= 0);
+end;
+
+function TMPasAI_Raster.Get_Serialized_Size(RSeri: TPasAI_RasterSerialized): Int64;
+begin
+  Result := 0;
+  if (FSerialized_Engine <> nil) and (FSerialized_Engine = RSeri) and (FSerialized_ID >= 0) then
+      Result := FSerialized_Engine.Get_Raster_Size(Self);
+end;
+
+function TMPasAI_Raster.Get_Serialized_Size(): Int64;
+begin
+  Result := 0;
+  if (FSerialized_Engine <> nil) and (FSerialized_ID >= 0) then
+      Result := FSerialized_Engine.Get_Raster_Size(Self);
+end;
+
 function TMPasAI_Raster.RecycleMemory(): Int64;
 begin
   Result := 0;
@@ -604,23 +626,29 @@ end;
 procedure TMPasAI_Raster.ReadyBits;
 begin
   FActivted := True;
-  if (FBits = nil) and (FWidth > 0) and (FHeight > 0) and (FMemorySerializedPosition >= 0) and (FSerialized_Engine <> nil) then
+  if (FBits = nil) and (FWidth > 0) and (FHeight > 0) and (FSerialized_ID >= 0) and (FSerialized_Engine <> nil) then
       UnserializedMemory();
 end;
 
 procedure TMPasAI_Raster.ResetSerialized;
 begin
   ReadyBits;
+  FSerialized_Read_History_Ptr := nil;
+  FSerialized_Write_History_Ptr := nil;
   FSerialized_Engine := nil;
-  FMemorySerializedPosition := -1;
+  FSerialized_ID := -1;
+  FSerialized_Size := 0;
 end;
 
 procedure TMPasAI_Raster.Safe_ResetSerialized;
 begin
   if FSerialized_Engine <> nil then
       FSerialized_Engine.Remove(Self);
+  FSerialized_Read_History_Ptr := nil;
+  FSerialized_Write_History_Ptr := nil;
   FSerialized_Engine := nil;
-  FMemorySerializedPosition := -1;
+  FSerialized_ID := -1;
+  FSerialized_Size := 0;
 end;
 
 procedure TMPasAI_Raster.SetWorkMemory(Forever: Boolean; WorkMemory: Pointer; NewWidth, NewHeight: Integer);
@@ -782,13 +810,15 @@ begin
   Safe_ResetSerialized;
 end;
 
-procedure TMPasAI_Raster.SwapInstance(dest: TMPasAI_Raster);
+procedure TMPasAI_Raster.SwapInstance(dest: TMPasAI_Raster; Swap_Serialized_: Boolean);
 var
   bak_Bits: PRColorArray;
   bak_Width, bak_Height: Integer;
   bak_FreeBits: Boolean;
+  bak_Serialized_Read_History_Ptr: TSerialized_History_Pool.PQueueStruct;
+  bak_Serialized_Write_History_Ptr: TSerialized_History_Pool.PQueueStruct;
   bak_Serialized_Engine: TPasAI_RasterSerialized;
-  bak_MemorySerializedPosition: Int64;
+  bak_Serialized_ID: Integer;
 begin
   if Self = dest then
       exit;
@@ -800,28 +830,93 @@ begin
   dest.CloseVertex;
   dest.FreeAgg;
 
+  if Swap_Serialized_ then
+    begin
+      if (FSerialized_Engine <> dest.FSerialized_Engine) then
+        begin
+          if FSerialized_Engine <> nil then
+              FSerialized_Engine.Lock;
+          if dest.FSerialized_Engine <> nil then
+              dest.FSerialized_Engine.Lock;
+        end
+      else
+        begin
+          if FSerialized_Engine <> nil then
+              FSerialized_Engine.Lock;
+        end;
+    end;
+
   bak_Bits := FBits;
   bak_Width := FWidth;
   bak_Height := FHeight;
   bak_FreeBits := FFreeBits;
-  bak_Serialized_Engine := FSerialized_Engine;
-  bak_MemorySerializedPosition := FMemorySerializedPosition;
+  if Swap_Serialized_ then
+    begin
+      bak_Serialized_Read_History_Ptr := FSerialized_Read_History_Ptr;
+      bak_Serialized_Write_History_Ptr := FSerialized_Write_History_Ptr;
+      bak_Serialized_Engine := FSerialized_Engine;
+      bak_Serialized_ID := FSerialized_ID;
+    end;
 
   FBits := dest.FBits;
   FWidth := dest.FWidth;
   FHeight := dest.FHeight;
   FFreeBits := dest.FFreeBits;
-  FSerialized_Engine := dest.FSerialized_Engine;
-  FMemorySerializedPosition := dest.FMemorySerializedPosition;
+  if Swap_Serialized_ then
+    begin
+      FSerialized_Read_History_Ptr := dest.FSerialized_Read_History_Ptr;
+      FSerialized_Write_History_Ptr := dest.FSerialized_Write_History_Ptr;
+      FSerialized_Engine := dest.FSerialized_Engine;
+      FSerialized_ID := dest.FSerialized_ID;
+    end;
 
   dest.FBits := bak_Bits;
   dest.FWidth := bak_Width;
   dest.FHeight := bak_Height;
   dest.FFreeBits := bak_FreeBits;
-  dest.FSerialized_Engine := bak_Serialized_Engine;
-  dest.FMemorySerializedPosition := bak_MemorySerializedPosition;
+  if Swap_Serialized_ then
+    begin
+      dest.FSerialized_Read_History_Ptr := bak_Serialized_Read_History_Ptr;
+      dest.FSerialized_Write_History_Ptr := bak_Serialized_Write_History_Ptr;
+      dest.FSerialized_Engine := bak_Serialized_Engine;
+      dest.FSerialized_ID := bak_Serialized_ID;
+    end;
+
+  if Swap_Serialized_ then
+    begin
+      // update Dest Serialized history
+      if dest.FSerialized_Read_History_Ptr <> nil then
+          dest.FSerialized_Read_History_Ptr^.Data := dest;
+      if dest.FSerialized_Write_History_Ptr <> nil then
+          dest.FSerialized_Write_History_Ptr^.Data := dest;
+
+      // update Self Serialized history
+      if FSerialized_Read_History_Ptr <> nil then
+          FSerialized_Read_History_Ptr^.Data := Self;
+      if FSerialized_Write_History_Ptr <> nil then
+          FSerialized_Write_History_Ptr^.Data := Self;
+
+      if (FSerialized_Engine <> dest.FSerialized_Engine) then
+        begin
+          if FSerialized_Engine <> nil then
+              FSerialized_Engine.UnLock;
+          if dest.FSerialized_Engine <> nil then
+              dest.FSerialized_Engine.UnLock;
+        end
+      else
+        begin
+          if FSerialized_Engine <> nil then
+              FSerialized_Engine.UnLock;
+        end;
+    end;
+
   DoChange;
   dest.DoChange;
+end;
+
+procedure TMPasAI_Raster.SwapInstance(dest: TMPasAI_Raster);
+begin
+  SwapInstance(dest, False);
 end;
 
 function TMPasAI_Raster.BitsSame(sour: TMPasAI_Raster): Boolean;
@@ -971,6 +1066,16 @@ end;
 function TMPasAI_Raster.GetCRC32: Cardinal;
 begin
   Result := umlCRC32(@Bits^[0], MemorySize);
+end;
+
+function TMPasAI_Raster.Get_Gradient_L16_MD5: TMD5;
+var
+  tmp: TMPasAI_Raster;
+begin
+  tmp := Clone;
+  tmp.Gradient(16);
+  Result := tmp.GetMD5;
+  DisposeObject(tmp);
 end;
 
 procedure TMPasAI_Raster.SetSize(NewWidth, NewHeight: Integer);
@@ -2415,12 +2520,12 @@ begin
         end;
 end;
 
-function TMPasAI_Raster.ConvexHull(C: TRColor): TVec2List;
+function TMPasAI_Raster.ConvexHull(C: TRColor): TV2L;
 var
   I, J: Integer;
   found: Boolean;
 begin
-  Result := TVec2List.Create;
+  Result := TV2L.Create;
   for J := 0 to Height - 1 do
     begin
       found := False;
@@ -2956,7 +3061,7 @@ begin
   DrawCrossF(Dst[0], Dst[1], LineDist, Color);
 end;
 
-procedure TMPasAI_Raster.DrawCrossF(Polygon: TVec2List; LineDist: TGeoFloat; Color: TRColor);
+procedure TMPasAI_Raster.DrawCrossF(Polygon: TV2L; LineDist: TGeoFloat; Color: TRColor);
 var
   I: Integer;
 begin
@@ -2964,7 +3069,7 @@ begin
       DrawCrossF(Polygon[I]^, LineDist, Color);
 end;
 
-procedure TMPasAI_Raster.DrawPointListLine(pl: TVec2List; Color: TRColor; wasClose: Boolean);
+procedure TMPasAI_Raster.DrawPointListLine(pl: TV2L; Color: TRColor; wasClose: Boolean);
 var
   I: Integer;
   p1, p2: PVec2;
@@ -3019,7 +3124,7 @@ end;
 
 procedure TMPasAI_Raster.DrawCircle(CC: TVec2; R: TGeoFloat; Color: TRColor);
 var
-  vl: TVec2List;
+  vl: TV2L;
 begin
   if FAgg <> nil then
     begin
@@ -3029,7 +3134,7 @@ begin
     end
   else
     begin
-      vl := TVec2List.Create;
+      vl := TV2L.Create;
       vl.AddCirclePoint(Round(R), CC, R);
       DrawPointListLine(vl, Color, True);
       DisposeObject(vl);
@@ -3039,7 +3144,7 @@ end;
 
 procedure TMPasAI_Raster.FillCircle(CC: TVec2; R: TGeoFloat; Color: TRColor);
 var
-  vl: TVec2List;
+  vl: TV2L;
 begin
   if FAgg <> nil then
     begin
@@ -3049,7 +3154,7 @@ begin
     end
   else
     begin
-      vl := TVec2List.Create;
+      vl := TV2L.Create;
       vl.AddCirclePoint(Round(R), CC, R);
       Vertex.FillPoly(vl, CC, Color);
       DisposeObject(vl);
@@ -3061,7 +3166,7 @@ procedure TMPasAI_Raster.DrawEllipse(CC: TVec2; xRadius, yRadius: TGeoFloat; Col
 var
   I, n: Integer;
   S, C: TGeoFloatArray;
-  vl: TVec2List;
+  vl: TV2L;
 begin
   if Round(xRadius) = Round(yRadius) then
       DrawCircle(CC, xRadius, Color)
@@ -3083,7 +3188,7 @@ begin
           S[I] := S[I] * yRadius;
           C[I] := C[I] * xRadius;
         end;
-      vl := TVec2List.Create;
+      vl := TV2L.Create;
       // first quadrant (top right)
       for I := 0 to n do
           vl.Add(CC[0] + C[I], CC[1] - S[I]);
@@ -3116,7 +3221,7 @@ procedure TMPasAI_Raster.FillEllipse(CC: TVec2; xRadius, yRadius: TGeoFloat; Col
 var
   I, n: Integer;
   S, C: TGeoFloatArray;
-  vl: TVec2List;
+  vl: TV2L;
 begin
   if Round(xRadius) = Round(yRadius) then
       FillCircle(CC, xRadius, Color)
@@ -3138,7 +3243,7 @@ begin
           S[I] := S[I] * yRadius;
           C[I] := C[I] * xRadius;
         end;
-      vl := TVec2List.Create;
+      vl := TV2L.Create;
       // first quadrant (top right)
       for I := 0 to n do
           vl.Add(CC[0] + C[I], CC[1] - S[I]);
@@ -3960,7 +4065,7 @@ begin
   DoChange;
 end;
 
-procedure TMPasAI_Raster.ProjectionPolygonTo(const sour_Polygon: TVec2List; Dst: TMPasAI_Raster; DestRect: TRectV2; const bilinear_sampling: Boolean; const alpha: TGeoFloat);
+procedure TMPasAI_Raster.ProjectionPolygonTo(const sour_Polygon: TV2L; Dst: TMPasAI_Raster; DestRect: TRectV2; const bilinear_sampling: Boolean; const alpha: TGeoFloat);
 var
   R: TRectV2;
   nr: TMPasAI_Raster;
@@ -5086,7 +5191,7 @@ begin
     m64.Position := 0;
     LoadFromStream(m64);
   except
-    Reset();
+      Reset();
   end;
   DisposeObject(m64);
 end;
@@ -5552,11 +5657,11 @@ begin
   Create(False);
 end;
 
-constructor TMR_2D_Matrix.Create(AutoFreePasAI_Raster_: Boolean);
+constructor TMR_2D_Matrix.Create(AutoFree_MR_List_: Boolean);
 begin
   inherited Create;
   FCritical := TCritical.Create;
-  AutoFreePasAI_Raster := AutoFreePasAI_Raster_;
+  AutoFree_MR_List := AutoFree_MR_List_;
 end;
 
 destructor TMR_2D_Matrix.Destroy;
@@ -5578,7 +5683,7 @@ end;
 
 procedure TMR_2D_Matrix.Remove(obj: TMR_List);
 begin
-  if AutoFreePasAI_Raster then
+  if AutoFree_MR_List then
       DisposeObject(obj);
   inherited Remove(obj);
 end;
@@ -5587,7 +5692,7 @@ procedure TMR_2D_Matrix.Delete(index: Integer);
 begin
   if (index >= 0) and (index < Count) then
     begin
-      if AutoFreePasAI_Raster then
+      if AutoFree_MR_List then
           DisposeObject(Items[index]);
       inherited Delete(index);
     end;
@@ -5597,7 +5702,7 @@ procedure TMR_2D_Matrix.Clear;
 var
   I: Integer;
 begin
-  if AutoFreePasAI_Raster then
+  if AutoFree_MR_List then
     for I := 0 to Count - 1 do
         DisposeObject(Items[I]);
   inherited Clear;
@@ -5682,41 +5787,175 @@ begin
   DisposeObject(d);
 end;
 
+procedure TPasAI_RasterSerialized.Do_NoSpace(Trigger: TZDB2_Core_Space; Siz_: Int64; var retry: Boolean);
+begin
+  retry := FZDB2.Fast_AppendSpace(FZDB2_Delta, FZDB2_Block)
+end;
+
+function TPasAI_RasterSerialized.Get_AutoFreeStream: Boolean;
+begin
+  Result := FIOHnd.AutoFree;
+end;
+
+procedure TPasAI_RasterSerialized.Set_AutoFreeStream(const Value: Boolean);
+begin
+  FIOHnd.AutoFree := Value;
+end;
+
 constructor TPasAI_RasterSerialized.Create(stream_: TCore_Stream);
+var
+  n: U_String;
 begin
   inherited Create;
   // init
-  FStream := stream_;
-  FAutoFreeStream := False;
+  InitIOHnd(FIOHnd);
+  if stream_.Size > 0 then
+      stream_.Size := 0;
+
+  if stream_ is TCore_FileStream then
+      n := TCore_FileStream(stream_).filename
+  else if stream_ is TReliableFileStream then
+      n := TReliableFileStream(stream_).filename
+  else
+      n := '';
+  umlFileCreateAsStream(n, stream_, FIOHnd, False);
+  FSerialized_File := n;
+
+  FZDB2 := TZDB2_Core_Space.Create(@FIOHnd);
+  FZDB2.Mode := TZDB2_SpaceMode.smBigData;
+  FZDB2.AutoCloseIOHnd := True;
+  FZDB2.OnNoSpace := {$IFDEF FPC}@{$ENDIF FPC}Do_NoSpace;
+  FZDB2_Block := $FFFF;
+  FZDB2_Delta := 500 * 1024 * 1024;
+  FZDB2.Open;
+
   FCritical := TCritical.Create;
-  FWriteHistory := TMR_List.Create;
-  FReadHistory := TMR_List.Create;
-  FEnabledWriteHistory := False;
-  FEnabledReadHistory := False;
+  FPixel_Model := TRasterSerialized_Pixel_Model.rspmBGRA;
+
+  FWrite_History_Pool := TSerialized_History_Pool.Create;
+  FRead_History_Pool := TSerialized_History_Pool.Create;
+  FEnabled_Write_History := False;
+  FEnabled_Read_History := False;
+
+  FRemove_Serialized_File_On_Destroy := False;
 
   // update global Pool
-  FInstance_Queue_Ptr := PasAI_Raster_Serialized_Pool.Add(Self);
+  FInstance_Queue_Ptr := RasterSerialized_Instance_Pool.Add(Self);
+
+  if FSerialized_File <> '' then
+      DoStatus('Inited Serialized: "%s"', [FSerialized_File.Text])
+  else
+      DoStatus('Inited Serialized: "Memory Mode."');
+end;
+
+constructor TPasAI_RasterSerialized.Create_To_File(FileName_: U_String);
+begin
+  inherited Create;
+  // init
+  InitIOHnd(FIOHnd);
+  umlFileCreate(FileName_, FIOHnd);
+
+  FZDB2 := TZDB2_Core_Space.Create(@FIOHnd);
+  FZDB2.Mode := TZDB2_SpaceMode.smBigData;
+  FZDB2.AutoCloseIOHnd := True;
+  FZDB2.OnNoSpace := {$IFDEF FPC}@{$ENDIF FPC}Do_NoSpace;
+  FZDB2_Block := $FFFF;
+  FZDB2_Delta := 500 * 1024 * 1024;
+  FZDB2.Open;
+
+  FCritical := TCritical.Create;
+  FPixel_Model := TRasterSerialized_Pixel_Model.rspmBGRA;
+
+  FWrite_History_Pool := TSerialized_History_Pool.Create;
+  FRead_History_Pool := TSerialized_History_Pool.Create;
+  FEnabled_Write_History := False;
+  FEnabled_Read_History := False;
+
+  FSerialized_File := FileName_;
+  FRemove_Serialized_File_On_Destroy := False;
+  // update global Pool
+  FInstance_Queue_Ptr := RasterSerialized_Instance_Pool.Add(Self);
+
+  if FSerialized_File <> '' then
+      DoStatus('Inited Serialized: "%s"', [FSerialized_File.Text]);
+end;
+
+constructor TPasAI_RasterSerialized.Create_To_Directory(Directory_, File_Prefix_: U_String);
+var
+  Path_, FileName_: U_String;
+begin
+  inherited Create;
+
+  // generate temp file
+  Path_ := Directory_;
+  if Path_ = '' then
+      Path_ := umlGetCurrentPath();
+  repeat
+      FileName_ := umlCombineFileName(Path_, PFormat('%s%s.ZDB2', [File_Prefix_.Text, umlGenerate_Random_Name().Text]));
+  until not umlFileExists(FileName_);
+  umlCreateDirectory(Path_);
+
+  // init
+  InitIOHnd(FIOHnd);
+  umlFileCreate(FileName_, FIOHnd);
+
+  FZDB2 := TZDB2_Core_Space.Create(@FIOHnd);
+  FZDB2.Mode := TZDB2_SpaceMode.smBigData;
+  FZDB2.AutoCloseIOHnd := True;
+  FZDB2.OnNoSpace := {$IFDEF FPC}@{$ENDIF FPC}Do_NoSpace;
+  FZDB2_Block := $FFFF;
+  FZDB2_Delta := 500 * 1024 * 1024;
+  FZDB2.Open;
+
+  FCritical := TCritical.Create;
+  FPixel_Model := TRasterSerialized_Pixel_Model.rspmBGRA;
+
+  FWrite_History_Pool := TSerialized_History_Pool.Create;
+  FRead_History_Pool := TSerialized_History_Pool.Create;
+  FEnabled_Write_History := False;
+  FEnabled_Read_History := False;
+
+  FSerialized_File := FileName_;
+  FRemove_Serialized_File_On_Destroy := True;
+  // update global Pool
+  FInstance_Queue_Ptr := RasterSerialized_Instance_Pool.Add(Self);
+
+  if FSerialized_File <> '' then
+      DoStatus('Inited Serialized: "%s"', [FSerialized_File.Text]);
 end;
 
 destructor TPasAI_RasterSerialized.Destroy;
 begin
   // update global Pool
-  PasAI_Raster_Serialized_Pool.Remove_P(FInstance_Queue_Ptr);
+  RasterSerialized_Instance_Pool.Remove_P(FInstance_Queue_Ptr);
 
   // free
-  ClearHistory();
-  if FAutoFreeStream then
-      DisposeObject(FStream);
+  Clear_History();
+  DisposeObject(FZDB2);
   DisposeObject(FCritical);
-  DisposeObject(FWriteHistory);
-  DisposeObject(FReadHistory);
+  DisposeObject(FWrite_History_Pool);
+  DisposeObject(FRead_History_Pool);
+
+  if FSerialized_File <> '' then
+      DoStatus('Free Serialized: "%s"', [FSerialized_File.Text])
+  else
+      DoStatus('Free Serialized: "Memory Mode."');
+
+  if FRemove_Serialized_File_On_Destroy and (FSerialized_File <> '') and (umlFileExists(FSerialized_File)) then
+    begin
+      umlDeleteFile(FSerialized_File);
+      DoStatus('Remove Serialized: "%s"', [FSerialized_File.Text])
+    end;
   inherited Destroy;
 end;
 
 function TPasAI_RasterSerialized.Write(R: TMPasAI_Raster): Int64;
 var
-  h1, h2: TPasAI_RasterSerializedHeader;
-  p: Int64;
+  H: TPasAI_RasterSerializedHeader;
+  ID: Integer;
+  m64: TMem64;
+  I: Integer;
+  p: PByte;
 begin
   Result := 0;
   if (R = nil) or (R.empty()) then
@@ -5724,38 +5963,61 @@ begin
 
   FCritical.Acquire;
   try
-    h1.Width := R.Width;
-    h1.Height := R.Height;
-    h1.siz := R.Width * R.Height * 4;
-    h1.UsedAgg := R.FAggNeed;
+    H.Width := R.Width;
+    H.Height := R.Height;
+    case FPixel_Model of
+      TRasterSerialized_Pixel_Model.rspmBGRA: H.siz := R.Width * R.Height * 4;
+      TRasterSerialized_Pixel_Model.rspmBGR: H.siz := R.Width * R.Height * 3;
+    end;
+    H.UsedAgg := R.FAggNeed;
+    H.Pixel := FPixel_Model;
 
-    p := FStream.Size;
-    if R.FMemorySerializedPosition >= 0 then
-      begin
-        FStream.Position := R.FMemorySerializedPosition;
-        // overwrite
-        if FStream.Read(h2, SizeOf(TPasAI_RasterSerializedHeader)) = SizeOf(TPasAI_RasterSerializedHeader) then
-          if (h1.Width * h1.Height) = (h2.Width * h2.Height) then
-              p := R.FMemorySerializedPosition;
-      end;
-
-    FStream.Position := p;
+    // remove old
+    if R.FSerialized_ID >= 0 then
+        FZDB2.RemoveData(R.FSerialized_ID, False);
 
     // serialized write
-    if FStream.Write(h1, SizeOf(TPasAI_RasterSerializedHeader)) = SizeOf(TPasAI_RasterSerializedHeader) then
-      if FStream.Write(R.FBits^[0], h1.siz) = h1.siz then
-        begin
-          R.CloseVertex;
-          R.FreeAgg;
-          System.FreeMemory(R.FBits);
-          R.FBits := nil;
-          R.FMemorySerializedPosition := p;
-          Result := h1.siz;
-        end;
+    m64 := TMem64.Create;
+    m64.Size := SizeOf(TPasAI_RasterSerializedHeader) + H.siz;
+    m64.WritePtr(@H, SizeOf(TPasAI_RasterSerializedHeader));
 
-    if FEnabledWriteHistory then
-      if FWriteHistory.IndexOf(R) < 0 then
-          FWriteHistory.Add(R);
+    // write pixel
+    case FPixel_Model of
+      TRasterSerialized_Pixel_Model.rspmBGRA: m64.WritePtr(@R.FBits^[0], H.siz);
+      TRasterSerialized_Pixel_Model.rspmBGR:
+        begin
+          p := m64.PosAsPtr;
+          for I := 0 to (R.Width * R.Height) - 1 do
+            begin
+              PRGB(p)^ := PRGB(@R.DirectBits^[I])^;
+              inc(p, 3);
+            end;
+        end;
+    end;
+
+    // update to zdb2
+    if FZDB2.WriteData(m64, ID, False) then
+      begin
+        // free memory
+        R.CloseVertex;
+        R.FreeAgg;
+        System.FreeMemory(R.FBits);
+        R.FBits := nil;
+        R.FSerialized_ID := ID;
+        R.FSerialized_Size := H.siz;
+        Result := H.siz;
+      end;
+    DisposeObject(m64);
+
+    if FEnabled_Write_History then
+      begin
+        try
+          if (R.FSerialized_Write_History_Ptr <> nil) and (R.FSerialized_Write_History_Ptr^.Instance___ = FWrite_History_Pool) then
+              FWrite_History_Pool.Remove_P(R.FSerialized_Write_History_Ptr);
+          R.FSerialized_Write_History_Ptr := FWrite_History_Pool.Add(R);
+        except
+        end;
+      end;
   finally
       FCritical.Release;
   end;
@@ -5764,9 +6026,12 @@ end;
 function TPasAI_RasterSerialized.Read(R: TMPasAI_Raster): Int64;
 var
   H: TPasAI_RasterSerializedHeader;
+  m64: TMem64;
+  I: Integer;
+  p: PByte;
 begin
   Result := 0;
-  if (R = nil) or (R.FMemorySerializedPosition < 0) then
+  if (R = nil) or (R.FSerialized_ID < 0) then
       exit;
 
   R.CloseVertex;
@@ -5774,35 +6039,98 @@ begin
 
   FCritical.Acquire;
   try
-    if (R.FMemorySerializedPosition >= 0) then
+    if (R.FSerialized_ID >= 0) then
       begin
-        FStream.Position := R.FMemorySerializedPosition;
-        if FStream.Read(H, SizeOf(TPasAI_RasterSerializedHeader)) = SizeOf(TPasAI_RasterSerializedHeader) then
-          if FStream.Position + H.siz <= FStream.Size then
-            begin
-              // recycle memory change
-              if Assigned(R.FBits) and R.FFreeBits then
-                  System.FreeMemory(R.FBits);
+        m64 := TMem64.Create;
+        if FZDB2.ReadData(m64, R.FSerialized_ID) then
+          begin
+            m64.Position := 0;
+            m64.ReadPtr(@H, SizeOf(TPasAI_RasterSerializedHeader));
 
-              // alloc serialized memory
-              R.FBits := System.GetMemory(H.siz);
-              R.FWidth := H.Width;
-              R.FHeight := H.Height;
+            // recycle
+            if Assigned(R.FBits) and R.FFreeBits then
+                System.FreeMemory(R.FBits);
 
-              // restore
-              if FStream.Read(R.FBits^[0], H.siz) = H.siz then
+            // alloc
+            R.FBits := System.GetMemory(H.Width * H.Height * 4);
+            R.FWidth := H.Width;
+            R.FHeight := H.Height;
+
+            // read pixel
+            case H.Pixel of
+              TRasterSerialized_Pixel_Model.rspmBGRA: CopyPtr(m64.PosAsPtr, @R.FBits^[0], H.siz);
+              TRasterSerialized_Pixel_Model.rspmBGR:
                 begin
-                  R.FFreeBits := True;
-                  if H.UsedAgg then
-                      R.OpenAgg;
-                  Result := H.siz;
+                  p := m64.PosAsPtr;
+                  for I := 0 to (H.Width * H.Height) - 1 do
+                    begin
+                      R.DirectBits^[I] := RGB2RGBA(PRGB(p)^);
+                      inc(p, 3);
+                    end;
                 end;
             end;
+
+            R.FFreeBits := True;
+            if H.UsedAgg then
+                R.OpenAgg;
+            Result := H.siz;
+            R.FSerialized_Size := H.siz;
+          end;
+        DisposeObject(m64);
       end;
 
-    if FEnabledReadHistory then
-      if FReadHistory.IndexOf(R) < 0 then
-          FReadHistory.Add(R);
+    if FEnabled_Read_History then
+      begin
+        try
+          if (R.FSerialized_Read_History_Ptr <> nil) and (R.FSerialized_Read_History_Ptr^.Instance___ = FRead_History_Pool) then
+              FRead_History_Pool.Remove_P(R.FSerialized_Read_History_Ptr);
+          R.FSerialized_Read_History_Ptr := FRead_History_Pool.Add(R);
+        except
+        end;
+      end;
+  finally
+      FCritical.Release;
+  end;
+end;
+
+function TPasAI_RasterSerialized.Get_Raster_Size(R: TMPasAI_Raster): Int64;
+var
+  H: TPasAI_RasterSerializedHeader;
+  m64: TMem64;
+  hnd: TZDB2_BlockHandle;
+begin
+  Result := 0;
+  if (R = nil) or (R.FSerialized_ID < 0) then
+      exit;
+
+  FCritical.Acquire;
+  try
+    if (R.FSerialized_ID >= 0) then
+      begin
+        m64 := TMem64.Create;
+        m64.Size := SizeOf(TPasAI_RasterSerializedHeader);
+        hnd := FZDB2.GetSpaceHnd(R.FSerialized_ID);
+        if Length(hnd) > 0 then
+          if FZDB2.Block_IO_Custom_Read(m64.Memory, hnd[0], 0, SizeOf(TPasAI_RasterSerializedHeader)) then
+            begin
+              m64.Position := 0;
+              m64.ReadPtr(@H, SizeOf(TPasAI_RasterSerializedHeader));
+              R.FSerialized_Size := H.siz;
+              Result := H.siz;
+            end;
+        DisposeObject(m64);
+        SetLength(hnd, 0);
+
+        if FEnabled_Read_History then
+          begin
+            try
+              if (R.FSerialized_Read_History_Ptr <> nil) and (R.FSerialized_Read_History_Ptr^.Instance___ = FRead_History_Pool) then
+                  FRead_History_Pool.Remove_P(R.FSerialized_Read_History_Ptr);
+              R.FSerialized_Read_History_Ptr := FRead_History_Pool.Add(R);
+            except
+            end;
+          end;
+      end;
   finally
       FCritical.Release;
   end;
@@ -5814,41 +6142,68 @@ var
 begin
   FCritical.Acquire;
   try
-    for I := FReadHistory.Count - 1 downto 0 do
-      if FReadHistory[I] = R then
-          FReadHistory.Delete(I);
+    // remove old
+    if R.FSerialized_ID >= 0 then
+        FZDB2.RemoveData(R.FSerialized_ID, False);
 
-    for I := FWriteHistory.Count - 1 downto 0 do
-      if FWriteHistory[I] = R then
-          FWriteHistory.Delete(I);
+    if (R.FSerialized_Write_History_Ptr <> nil) and (R.FSerialized_Write_History_Ptr^.Instance___ = FWrite_History_Pool) then
+        FWrite_History_Pool.Remove_P(R.FSerialized_Write_History_Ptr);
+    R.FSerialized_Write_History_Ptr := nil;
+
+    if (R.FSerialized_Read_History_Ptr <> nil) and (R.FSerialized_Read_History_Ptr^.Instance___ = FRead_History_Pool) then
+        FRead_History_Pool.Remove_P(R.FSerialized_Read_History_Ptr);
+    R.FSerialized_Read_History_Ptr := nil;
   finally
       FCritical.Release;
   end;
 end;
 
-procedure TPasAI_RasterSerialized.ClearHistory;
+procedure TPasAI_RasterSerialized.Clear_History;
 begin
   FCritical.Acquire;
   try
-    FReadHistory.Clear;
-    FWriteHistory.Clear;
+    if FRead_History_Pool.Num > 0 then
+      with FRead_History_Pool.Repeat_ do
+        repeat
+            Queue^.Data.FSerialized_Read_History_Ptr := nil;
+        until not Next;
+    FRead_History_Pool.Clear;
+
+    if FWrite_History_Pool.Num > 0 then
+      with FWrite_History_Pool.Repeat_ do
+        repeat
+            Queue^.Data.FSerialized_Write_History_Ptr := nil;
+        until not Next;
+    FWrite_History_Pool.Clear;
   finally
       FCritical.Release;
   end;
+end;
+
+procedure TPasAI_RasterSerialized.Format_Space;
+begin
+  FCritical.Acquire;
+  try
+      FZDB2.Format_Space;
+  finally
+      FCritical.Release;
+  end;
+end;
+
+procedure TPasAI_RasterSerialized.Lock;
+begin
+  FCritical.Acquire;
+end;
+
+procedure TPasAI_RasterSerialized.UnLock;
+begin
+  FCritical.Release;
 end;
 
 function TPasAI_RasterSerialized.StreamSize: Int64;
 begin
   FCritical.Acquire;
-  Result := FStream.Size;
-  FCritical.Release;
-end;
-
-function TPasAI_RasterSerialized.StreamFile: U_String;
-begin
-  Result := '';
-  FCritical.Acquire;
-  if FStream is TCore_FileStream then
-      Result := TCore_FileStream(FStream).FileName;
+  with FZDB2.State^ do
+      Result := Physics - FreeSpace;
   FCritical.Release;
 end;

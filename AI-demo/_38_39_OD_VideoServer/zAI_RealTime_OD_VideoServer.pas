@@ -11,7 +11,7 @@ uses Classes, IOUtils, Threading,
 type
   TRealTime_OD_VideoServer = class;
 
-  TOD_VideoIO_ = class(TPeerIOUserSpecial)
+  TOD_VideoIO_ = class(TPeer_IO_User_Special)
   public
     VideoFrames: TMemoryStream64List;
     constructor Create(AOwner: TPeerIO); override;

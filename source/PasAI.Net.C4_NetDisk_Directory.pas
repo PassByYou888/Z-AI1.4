@@ -14,6 +14,7 @@ uses
   PasAI.Core, PasAI.PascalStrings, PasAI.UPascalStrings, PasAI.Status, PasAI.UnicodeMixedLib, PasAI.ListEngine,
   PasAI.Geometry2D, PasAI.DFE, PasAI.Json, PasAI.Expression, PasAI.OpCode,
   PasAI.Notify, PasAI.Cipher, PasAI.MemoryStream,
+  PasAI.FragmentBuffer, // solve for discontinuous space
   PasAI.ZDB2, PasAI.ZDB2.ObjectDataManager, PasAI.ZDB2.DFE,
   PasAI.ZDB.ObjectData_LIB, PasAI.ZDB, PasAI.ZDB.ItemStream_LIB,
   PasAI.HashList.Templet,
@@ -1905,9 +1906,21 @@ begin
   Directory_HashPool.IgnoreCase := True;
 
   if EStrToBool(ParamList.GetDefaultValue('ForeverSave', 'True'), True) and umlFileExists(C40_Directory_Database_File) then
-      Directory_FS := TCore_FileStream.Create(C40_Directory_Database_File, fmOpenReadWrite)
+    begin
+{$IFDEF C4_Safe_Flush}
+      Directory_FS := TSafe_Flush_Stream.Create(C40_Directory_Database_File, False, True);
+{$ELSE C4_Safe_Flush}
+      Directory_FS := TCore_FileStream.Create(C40_Directory_Database_File, fmOpenReadWrite);
+{$ENDIF C4_Safe_Flush}
+    end
   else
+    begin
+{$IFDEF C4_Safe_Flush}
+      Directory_FS := TSafe_Flush_Stream.Create(C40_Directory_Database_File, True, True);
+{$ELSE C4_Safe_Flush}
       Directory_FS := TCore_FileStream.Create(C40_Directory_Database_File, fmCreate);
+{$ENDIF C4_Safe_Flush}
+    end;
 
   Directory_Database := TZDB2_List_ObjectDataManager.Create(
   TZDB2_ObjectDataManager,

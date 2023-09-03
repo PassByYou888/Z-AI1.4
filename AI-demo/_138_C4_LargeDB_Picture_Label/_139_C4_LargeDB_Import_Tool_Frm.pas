@@ -134,7 +134,7 @@ var
     if IsStop.V then
         exit;
 
-    f_arry := umlGetFileListPath(ph);
+    f_arry := umlGet_File_Array(ph);
     for s in f_arry do
       begin
         if umlMultipleMatch(['*.jpg', '*.png', '*.bmp'], s) then
@@ -142,7 +142,7 @@ var
       end;
     SetLength(f_arry, 0);
 
-    d_arry := umlGetDirListWithFullPath(ph);
+    d_arry := umlGet_Path_Full_Array(ph);
     for s in d_arry do
       begin
         try
@@ -195,11 +195,17 @@ begin
   TCompute.RunP_NP(procedure
     var
       L: TCore_StringList;
+      tk: TTimeTick;
     begin
       L := TCore_StringList.Create;
+      tk := GetTimeTick;
       while runing_ do
         begin
-          db.Flush(False);
+          if GetTimeTick - tk > 5000 then
+            begin
+              db.Flush(False);
+              tk := GetTimeTick;
+            end;
           L.Clear;
           L.Add(db.S_DB.Get_State_Info.TrimChar(#13#10));
           L.Add(db.M_DB.Get_State_Info.TrimChar(#13#10));

@@ -89,13 +89,13 @@ const
   edge = 30;
 var
   j: Integer;
-  vl: TVec2List;
+  vl: TV2L;
   v: TVec2;
 begin
   output.SetSize(w, h, PasAI_RasterColorF(0, 0, 0, 1));
   MT19937Randomize();
 
-  vl := TVec2List.Create;
+  vl := TV2L.Create;
   // 根据steps系数构建原始坐标系
   for j := 0 to steps - 1 do
       vl.Add(umlRandomRange(edge, w - edge), umlRandomRange(edge, h - edge));

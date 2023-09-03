@@ -148,7 +148,7 @@ var
   sour_box, dest_box: TRectV2;
   n: U_String;
   view_: TEditorImageData_Viewer;
-  L: TVec2List;
+  L: TV2L;
 begin
   ViewIntf.DrawEng := dIntf.SetSurfaceAndGetDrawPool(Canvas, Sender);
   ViewIntf.Render(True, False);
@@ -174,7 +174,7 @@ begin
           repeat
             if queue^.Data.Convex_Hull.Count > 0 then
               begin
-                L := TVec2List.Create;
+                L := TV2L.Create;
                 queue^.Data.Convex_Hull.ProjectionTo(view_.Raster.BoundsRectV20, view_.ScreenBox, L);
                 ViewIntf.DrawEng.DrawPL(L, True, DEColor(0.5, 1, 0.5), 1);
                 ViewIntf.DrawEng.DrawDotLineBox(RectEdge(L.BoundBox, 2), DEColor(1, 0, 1), 1);

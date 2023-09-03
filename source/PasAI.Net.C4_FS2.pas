@@ -16,6 +16,7 @@ uses
   PasAI.Core, PasAI.PascalStrings, PasAI.UPascalStrings, PasAI.Status, PasAI.UnicodeMixedLib, PasAI.ListEngine,
   PasAI.Geometry2D, PasAI.DFE, PasAI.Json, PasAI.Expression, PasAI.OpCode,
   PasAI.Notify, PasAI.Cipher, PasAI.MemoryStream,
+  PasAI.FragmentBuffer, // solve for discontinuous space
   PasAI.ZDB2, PasAI.ZDB2.MS64, PasAI.HashList.Templet,
   PasAI.Net, PasAI.Net.PhysicsIO, PasAI.Net.DoubleTunnelIO.NoAuth, PasAI.Net.C4;
 
@@ -47,7 +48,7 @@ type
 
   TC40_FS2_Service = class(TC40_Base_NoAuth_Service)
   protected
-    procedure DoLinkSuccess_Event(Sender: TDTService_NoAuth; UserDefineIO: TPeerClientUserDefineForRecvTunnel_NoAuth); override;
+    procedure DoLinkSuccess_Event(Sender: TDTService_NoAuth; UserDefineIO: TService_RecvTunnel_UserDefine_NoAuth); override;
     // command
     procedure cmd_FS2_CheckMD5AndFastCopy(Sender: TPeerIO; InData, OutData: TDFE);
     procedure cmd_FS2_PostFile(Sender: TPeerIO; InData: PByte; DataSize: NativeInt);
@@ -459,7 +460,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TC40_FS2_Service.DoLinkSuccess_Event(Sender: TDTService_NoAuth; UserDefineIO: TPeerClientUserDefineForRecvTunnel_NoAuth);
+procedure TC40_FS2_Service.DoLinkSuccess_Event(Sender: TDTService_NoAuth; UserDefineIO: TService_RecvTunnel_UserDefine_NoAuth);
 var
   tmp_: TDFE;
 begin
@@ -940,9 +941,21 @@ begin
   DoStatus('extract %s', [C40_FS2_FileName.Text]);
 
   if EStrToBool(ParamList.GetDefaultValue('ForeverSave', 'True'), True) and umlFileExists(C40_FS2_FileName) then
-      FS := TCore_FileStream.Create(C40_FS2_FileName, fmOpenReadWrite)
+    begin
+{$IFDEF C4_Safe_Flush}
+      FS := TSafe_Flush_Stream.Create(C40_FS2_FileName, False, True);
+{$ELSE C4_Safe_Flush}
+      FS := TCore_FileStream.Create(C40_FS2_FileName, fmOpenReadWrite);
+{$ENDIF C4_Safe_Flush}
+    end
   else
+    begin
+{$IFDEF C4_Safe_Flush}
+      FS := TSafe_Flush_Stream.Create(C40_FS2_FileName, True, True);
+{$ELSE C4_Safe_Flush}
       FS := TCore_FileStream.Create(C40_FS2_FileName, fmCreate);
+{$ENDIF C4_Safe_Flush}
+    end;
 
   FileDatabase := TZDB2_List_MS64.Create(
   TC40_FS2_Service_ZDB2_MS64,

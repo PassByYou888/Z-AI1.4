@@ -31,8 +31,8 @@ uses DateUtils, SysUtils,
 type
   TZDB2_Picture_Info = class(TZDB2_Custom_Small_Data) // 图片信息
   public
-    Relate_Preview: UInt64;
-    Relate_Picture_Body: UInt64;
+    Relate_Preview: Int64;
+    Relate_Picture_Body: Int64;
     Width, Height: Integer;
     Picture_Info: U_String;
     constructor Create(); override;
@@ -41,11 +41,17 @@ type
     // 接口小数据有这两个api就行
     procedure Extract_Data_Source(Data_Source: TMS64); override;
     function Make_Data_Source: TMS64;
+    { 用于解决hdd分散性能问题的扩展数据头技术 }
+    { 当数据量很大时，一个数据集包含几十个或数百个小型数据库。在磁盘操作过程中，磁盘预读取将被分块读取，这大大消耗了HDD读取时间 }
+    { 扩展数据头是将数千个碎片化的数据库聚集在一起，一次读取所有数据库，从而提高数据库的启动效率。同时，预读取对内存的要求也更高 }
+    { 预读技术可以提高绝大多数hdd系统中的数据加载效率 }
+    procedure Encode_External_Header_Data(External_Header_Data: TMem64); override;
+    procedure Decode_External_Header_Data(External_Header_Data: TMem64); override;
   end;
 
   TZDB2_Picture_Preview = class(TZDB2_Custom_Medium_Data) // 预览
   public
-    Relate_Info: UInt64;
+    Relate_Info: Int64;
     constructor Create(); override;
     destructor Destroy; override;
     procedure Do_Remove(); override;
@@ -54,11 +60,17 @@ type
     function Encode_To_ZDB2_Data(Data_Source: TMS64; AutoFree_: Boolean): TMem64; override; // 结构保存ZDB2
     function Decode_From_ZDB2_Data(Data_Source: TMem64; Update_: Boolean): TMS64; override; // 从ZDB2数据还原
     function Make_Data_Source(preview_: TPasAI_Raster): TMS64; // 规范光栅生成
+    { 用于解决hdd分散性能问题的扩展数据头技术 }
+    { 当数据量很大时，一个数据集包含几十个或数百个小型数据库。在磁盘操作过程中，磁盘预读取将被分块读取，这大大消耗了HDD读取时间 }
+    { 扩展数据头是将数千个碎片化的数据库聚集在一起，一次读取所有数据库，从而提高数据库的启动效率。同时，预读取对内存的要求也更高 }
+    { 预读技术可以提高绝大多数hdd系统中的数据加载效率 }
+    procedure Encode_External_Header_Data(External_Header_Data: TMem64); override;
+    procedure Decode_External_Header_Data(External_Header_Data: TMem64); override;
   end;
 
   TZDB2_Picture_Body = class(TZDB2_Custom_Large_Data) // 图片本体
   public
-    Relate_Info: UInt64;
+    Relate_Info: Int64;
     constructor Create(); override;
     destructor Destroy; override;
     procedure Do_Remove(); override;
@@ -67,9 +79,15 @@ type
     function Encode_To_ZDB2_Data(Data_Source: TMS64; AutoFree_: Boolean): TMem64; override; // 结构保存ZDB2
     function Decode_From_ZDB2_Data(Data_Source: TMem64; Update_: Boolean): TMS64; override; // 从ZDB2数据还原
     function Make_Data_Source(Body_: TPasAI_Raster): TMS64; // 规范光栅生成
+    { 用于解决hdd分散性能问题的扩展数据头技术 }
+    { 当数据量很大时，一个数据集包含几十个或数百个小型数据库。在磁盘操作过程中，磁盘预读取将被分块读取，这大大消耗了HDD读取时间 }
+    { 扩展数据头是将数千个碎片化的数据库聚集在一起，一次读取所有数据库，从而提高数据库的启动效率。同时，预读取对内存的要求也更高 }
+    { 预读技术可以提高绝大多数hdd系统中的数据加载效率 }
+    procedure Encode_External_Header_Data(External_Header_Data: TMem64); override;
+    procedure Decode_External_Header_Data(External_Header_Data: TMem64); override;
   end;
 
-  TZDB2_Picture = class(TZDB2_Custom_Large_Marshal)
+  TZDB2_Picture = class(TZDB2_Large)
   public
     constructor Create();
     destructor Destroy; override;
@@ -107,8 +125,8 @@ end;
 
 procedure TZDB2_Picture_Info.Extract_Data_Source(Data_Source: TMS64);
 begin
-  Relate_Preview := Data_Source.ReadUInt64;
-  Relate_Picture_Body := Data_Source.ReadUInt64;
+  Relate_Preview := Data_Source.ReadInt64;
+  Relate_Picture_Body := Data_Source.ReadInt64;
   Width := Data_Source.ReadInt32;
   Height := Data_Source.ReadUInt32;
   Picture_Info := Data_Source.ReadString;
@@ -117,13 +135,23 @@ end;
 function TZDB2_Picture_Info.Make_Data_Source: TMS64;
 begin
   Result := TMS64.Create;
-  Result.WriteUInt64(Relate_Preview);
-  Result.WriteUInt64(Relate_Picture_Body);
+  Result.WriteInt64(Relate_Preview);
+  Result.WriteInt64(Relate_Picture_Body);
   Result.WriteInt32(Width);
   Result.WriteInt32(Height);
   Result.WriteString(Picture_Info);
   MD5 := Result.ToMD5;
   Result.Position := 0;
+end;
+
+procedure TZDB2_Picture_Info.Encode_External_Header_Data(External_Header_Data: TMem64);
+begin
+  inherited Encode_External_Header_Data(External_Header_Data);
+end;
+
+procedure TZDB2_Picture_Info.Decode_External_Header_Data(External_Header_Data: TMem64);
+begin
+  inherited Decode_External_Header_Data(External_Header_Data);
 end;
 
 constructor TZDB2_Picture_Preview.Create;
@@ -151,9 +179,9 @@ begin
   Result := TMem64.Create;
   Result.Size := 32 + Data_Source.Size;
   Result.Position := 0;
-  Result.WriteUInt64(Sequence_ID);
+  Result.WriteInt64(Sequence_ID);
   Result.WriteMD5(MD5);
-  Result.WriteUInt64(Relate_Info);
+  Result.WriteInt64(Relate_Info);
   Result.WritePtr(Data_Source.Memory, Data_Source.Size);
   if AutoFree_ then
       DisposeObject(Data_Source);
@@ -164,9 +192,9 @@ begin
   if Update_ then
     begin
       Data_Source.Position := 0;
-      Sequence_ID := Data_Source.ReadUInt64;
+      Sequence_ID := Data_Source.ReadInt64;
       MD5 := Data_Source.ReadMD5;
-      Relate_Info := Data_Source.ReadUInt64;
+      Relate_Info := Data_Source.ReadInt64;
     end
   else
       Data_Source.Position := 32;
@@ -184,6 +212,18 @@ begin
   DisposeObject(tmp);
   MD5 := Result.ToMD5;
   Result.Position := 0;
+end;
+
+procedure TZDB2_Picture_Preview.Encode_External_Header_Data(External_Header_Data: TMem64);
+begin
+  inherited Encode_External_Header_Data(External_Header_Data);
+  External_Header_Data.WriteInt64(Relate_Info);
+end;
+
+procedure TZDB2_Picture_Preview.Decode_External_Header_Data(External_Header_Data: TMem64);
+begin
+  inherited Decode_External_Header_Data(External_Header_Data);
+  Relate_Info := External_Header_Data.ReadInt64;
 end;
 
 constructor TZDB2_Picture_Body.Create;
@@ -211,9 +251,9 @@ begin
   Result := TMem64.Create;
   Result.Size := 32 + Data_Source.Size;
   Result.Position := 0;
-  Result.WriteUInt64(Sequence_ID);
+  Result.WriteInt64(Sequence_ID);
   Result.WriteMD5(MD5);
-  Result.WriteUInt64(Relate_Info);
+  Result.WriteInt64(Relate_Info);
   Result.WritePtr(Data_Source.Memory, Data_Source.Size);
   if AutoFree_ then
       DisposeObject(Data_Source);
@@ -224,9 +264,9 @@ begin
   if Update_ then
     begin
       Data_Source.Position := 0;
-      Sequence_ID := Data_Source.ReadUInt64;
+      Sequence_ID := Data_Source.ReadInt64;
       MD5 := Data_Source.ReadMD5;
-      Relate_Info := Data_Source.ReadUInt64;
+      Relate_Info := Data_Source.ReadInt64;
     end
   else
       Data_Source.Position := 32;
@@ -242,12 +282,27 @@ begin
   Result.Position := 0;
 end;
 
+procedure TZDB2_Picture_Body.Encode_External_Header_Data(External_Header_Data: TMem64);
+begin
+  inherited Encode_External_Header_Data(External_Header_Data);
+  External_Header_Data.WriteInt64(Relate_Info);
+end;
+
+procedure TZDB2_Picture_Body.Decode_External_Header_Data(External_Header_Data: TMem64);
+begin
+  inherited Decode_External_Header_Data(External_Header_Data);
+  Relate_Info := External_Header_Data.ReadInt64;
+end;
+
 constructor TZDB2_Picture.Create;
 begin
-  inherited Create;
-  Small_Data_Class := TZDB2_Picture_Info;
-  Medium_Data_Class := TZDB2_Picture_Preview;
-  Large_Data_Class := TZDB2_Picture_Body;
+  inherited Create(
+    TZDB2_Picture_Info,
+    TZDB2_Picture_Preview,
+    TZDB2_Picture_Body);
+  S_DB_Engine_External_Header_Optimzied_Technology := False;
+  M_DB_Engine_External_Header_Optimzied_Technology := True;
+  L_DB_Engine_External_Header_Optimzied_Technology := True;
 end;
 
 destructor TZDB2_Picture.Destroy;

@@ -213,7 +213,7 @@ begin
   DisposeObject(rnd);
 end;
 
-procedure TMorphomatics.FillValueFromPolygon(Polygon: TVec2List; InsideValue, OutsideValue: TMorphomaticsValue);
+procedure TMorphomatics.FillValueFromPolygon(Polygon: TV2L; InsideValue, OutsideValue: TMorphomaticsValue);
 {$IFDEF Parallel}
 {$IFDEF FPC}
   procedure Nested_ParallelFor(Y: Integer);

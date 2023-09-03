@@ -19,6 +19,7 @@ uses Types,
 {$ENDIF FPC}
   PasAI.PascalStrings, PasAI.UPascalStrings, PasAI.MemoryStream, PasAI.UnicodeMixedLib, PasAI.DFE, PasAI.ListEngine, PasAI.TextDataEngine,
   PasAI.HashList.Templet,
+  PasAI.FastGBK, PasAI.GBK,
   PasAI.ZDB, PasAI.ZDB.ObjectData_LIB, PasAI.ZDB.ItemStream_LIB,
   PasAI.Learn.Type_LIB, PasAI.Learn,
   PasAI.DrawEngine, PasAI.Geometry2D, PasAI.MemoryRaster, PasAI.Parsing, PasAI.Expression, PasAI.OpCode;
@@ -78,7 +79,7 @@ type
     Owner: TPas_AI_Image;
     R: TRect;
     Token: U_String;
-    Part: TVec2List;
+    Part: TV2L;
     PrepareRaster: TMPasAI_Raster;
     Sequence_Token: U_String;
     Sequence_Index: Integer;
@@ -99,6 +100,8 @@ type
     procedure Jitter(rand: TRandom; SS_Raster_Width, SS_Raster_Height, XY_Offset_Scale_, Rotate_, Scale_: TGeoFloat; inner_fit_: Boolean;
       var Box_: TRectV2; var Angle_: TGeoFloat); overload;
     function Jitter(rand: TRandom; SS_Raster_Width, SS_Raster_Height, XY_Offset_Scale_, Rotate_, Scale_: TGeoFloat; inner_fit_: Boolean): TPasAI_Raster; overload;
+    function IsOverlap: Boolean; overload;
+    function IsOverlap(Nearest_Distance_: TGeoFloat): Boolean; overload;
   end;
 
   TArray_Detector_Define = array of TPas_AI_DetectorDefine;
@@ -128,11 +131,11 @@ type
   TDetector_Define_Overlap = class(TDetector_Define_Overlap_Decl)
   public
     Owner: TDetector_Define_Overlap_Tool;
-    Convex_Hull: TVec2List;
+    Convex_Hull: TV2L;
     constructor Create(Owner_: TDetector_Define_Overlap_Tool);
     destructor Destroy; override;
     function CompareData(const Data_1, Data_2: TPas_AI_DetectorDefine): Boolean; override;
-    function Compute_Convex_Hull(Extract_Box_: TGeoFloat): TVec2List;
+    function Compute_Convex_Hull(Extract_Box_: TGeoFloat): TV2L;
     function Compute_Overlap(box: TRectV2; Extract_Box_: TGeoFloat; img: TPas_AI_Image): Integer;
     function Build_Image(FitX, FitY: Integer; Edge_: TGeoFloat; EdgeColor_: TRColor; Sigma_: TGeoFloat): TPas_AI_Image;
   end;
@@ -245,6 +248,9 @@ type
     function OP_Image_IsTest(var Param: TOpParam): Variant;
     function OP_Image_FileInfo(var Param: TOpParam): Variant;
     function OP_Image_FindLabel(var Param: TOpParam): Variant;
+    function OP_Image_MD5(var Param: TOpParam): Variant;
+    function OP_Image_Gradient_L16_MD5(var Param: TOpParam): Variant;
+    function OP_Image_Random_Str(var Param: TOpParam): Variant;
     { condition on detector }
     function OP_Detector_GetLabel(var Param: TOpParam): Variant;
     { process on image }
@@ -267,6 +273,7 @@ type
     function OP_Image_SaveToFile(var Param: TOpParam): Variant;
     { process on detector }
     function OP_Detector_SetLabel(var Param: TOpParam): Variant;
+    function OP_Detector_ClearNoDefine(var Param: TOpParam): Variant;
     function OP_Detector_NoMatchClear(var Param: TOpParam): Variant;
     function OP_Detector_ClearDetector(var Param: TOpParam): Variant;
     function OP_Detector_DeleteDetector(var Param: TOpParam): Variant;
@@ -276,8 +283,14 @@ type
     function OP_Detector_Reset_Sequence(var Param: TOpParam): Variant;
     function OP_Detector_SetLabelFromArea(var Param: TOpParam): Variant;
     function OP_Detector_RemoveOutEdge(var Param: TOpParam): Variant;
+    function OP_Detector_RemoveOverlap(var Param: TOpParam): Variant;
     { process on all label }
     function OP_Replace(var Param: TOpParam): Variant;
+    function OP_S2PY(var Param: TOpParam): Variant;
+    function OP_S2PY2(var Param: TOpParam): Variant;
+    function OP_S2T(var Param: TOpParam): Variant;
+    function OP_S2H(var Param: TOpParam): Variant;
+    function OP_T2S(var Param: TOpParam): Variant;
   public
     Owner: TPas_AI_ImageList;
     DetectorDefineList: TDetector_Define_List;
@@ -357,28 +370,30 @@ type
     constructor Create;
     destructor Destroy; override;
 
+    { struct }
     function Clone: TPas_AI_ImageList;
-
     procedure Delete(index: Integer); overload;
     procedure Delete(index: Integer; freeObj_: Boolean); overload;
-
+    function Get_Learn_Reverse_Detector(Data_: U_String): TPas_AI_DetectorDefine;
+    procedure Update_ID;
     procedure Remove(img: TPas_AI_Image); overload;
     procedure Remove(img: TPas_AI_Image; freeObj_: Boolean); overload;
     procedure RemoveAverage(reversedImgNum: Integer; freeObj_: Boolean); overload;
     procedure RemoveInvalidDetectorDefineFromPart(fixedPartNum: Integer);
     procedure RemoveOutEdgeDetectorDefine(removeNull_, freeObj_: Boolean);
-
     procedure Clear; overload;
     procedure Clear(freeObj_: Boolean); overload;
     procedure ClearDetector;
     procedure ClearSegmentation;
     procedure ClearPrepareRaster;
 
+    { script }
     function RunScript(RSeri: TPasAI_RasterSerialized; ScriptStyle: TTextStyle; condition_exp, process_exp: SystemString): Integer; overload;
     function RunScript(RSeri: TPasAI_RasterSerialized; condition_exp, process_exp: SystemString): Integer; overload;
     function RunScript(ScriptStyle: TTextStyle; condition_exp, process_exp: SystemString): Integer; overload;
     function RunScript(condition_exp, process_exp: SystemString): Integer; overload;
 
+    { data and rasterization }
     procedure DrawTo(output: TMPasAI_Raster; Annotation_: Boolean; maxSampler: Integer); overload;
     procedure DrawTo(output: TMPasAI_Raster; maxSampler: Integer); overload;
     procedure DrawTo(output: TMPasAI_Raster); overload;
@@ -499,6 +514,8 @@ type
     destructor Destroy; override;
 
     procedure Add(imgL: TPas_AI_ImageList);
+    procedure Update_ID;
+    function Get_Learn_Reverse_Detector(Data_: U_String): TPas_AI_DetectorDefine;
 
     { script }
     function RunScript(RSeri: TPasAI_RasterSerialized; ScriptStyle: TTextStyle; condition_exp, process_exp: SystemString): Integer; overload;
@@ -509,8 +526,12 @@ type
     { import }
     procedure SearchAndAddImageList(RSeri: TPasAI_RasterSerialized; rootPath, filter: SystemString; includeSubdir, LoadImg: Boolean); overload;
     procedure SearchAndAddImageList(rootPath, filter: SystemString; includeSubdir, LoadImg: Boolean); overload;
-    procedure ImportImageListAsFragment(RSeri: TPasAI_RasterSerialized; imgList: TPas_AI_ImageList; RemoveSource: Boolean); overload;
-    procedure ImportImageListAsFragment(imgList: TPas_AI_ImageList; RemoveSource: Boolean); overload;
+
+    { import and split }
+    procedure ImportImageListAsFragment(RSeri: TPasAI_RasterSerialized; imgList: TPas_AI_ImageList); overload;
+    procedure ImportImageListAsFragment(imgList: TPas_AI_ImageList); overload;
+    procedure ImportImageList_As_Double_Group(RSeri: TPasAI_RasterSerialized; imgList: TPas_AI_ImageList); overload;
+    procedure ImportImageList_As_Double_Group(imgList: TPas_AI_ImageList); overload;
 
     { image matrix stream }
     procedure SaveToStream(stream: TCore_Stream; SaveImg: Boolean; PasAI_RasterSave_: TPasAI_RasterSaveFormat); overload;
@@ -646,15 +667,45 @@ procedure Build_XML_Dataset(xslFile, Name, comment, body: SystemString; build_ou
 procedure Build_XML_Style(build_output: TMS64);
 
 { draw share line }
-procedure DrawSPLine(sp_desc: TVec2List; bp, ep: Integer; closeLine: Boolean; Color: TDEColor; d: TDrawEngine); overload;
+procedure DrawSPLine(sp_desc: TV2L; bp, ep: Integer; closeLine: Boolean; Color: TDEColor; d: TDrawEngine); overload;
 procedure DrawSPLine(sp_desc: TArrayVec2; bp, ep: Integer; closeLine: Boolean; Color: TDEColor; d: TDrawEngine); overload;
 
 { draw face shape }
-procedure DrawFaceSP(sp_desc: TVec2List; Color: TDEColor; d: TDrawEngine); overload;
+procedure DrawFaceSP(sp_desc: TV2L; Color: TDEColor; d: TDrawEngine); overload;
 procedure DrawFaceSP(sp_desc: TArrayVec2; Color: TDEColor; d: TDrawEngine); overload;
 
+{ test dataset }
 procedure Check_and_Fixed_Test_Dataset(Train_Dataset, Test_Dataset: TPas_AI_ImageList); overload;
 procedure Check_and_Fixed_Test_Dataset(Train_Dataset, Test_Dataset: TPas_AI_ImageMatrix); overload;
+
+{ file type }
+type
+  TAI_File_Type = (
+    ft_ImageMatrix_Ext,
+    ft_ImageList_Ext,
+    ft_OD6L_Ext,
+    ft_OD3L_Ext,
+    ft_OD6L_Marshal_Ext,
+    ft_SP_Ext,
+    ft_Metric_Ext,
+    ft_LMetric_Ext,
+    ft_Learn_Ext,
+    ft_KDTree_Ext,
+    ft_MMOD6L_Ext,
+    ft_MMOD3L_Ext,
+    ft_RNIC_Ext,
+    ft_LRNIC_Ext,
+    ft_GDCNIC_Ext,
+    ft_GNIC_Ext,
+    ft_SS_Ext,
+    ft_ZMetric_Ext,
+    ft_OCR_Model_Package,
+    ft_Sync_Ext,
+    ft_Sync_Ext2,
+    ft_DCGAN_Ext,
+    ft_ZMetric_V2_Ext,
+    ft_Unknow);
+function Get_Z_AI_File_Type(fn: U_String): TAI_File_Type;
 
 {$ENDREGION 'API functions'}
 {$REGION 'global'}
@@ -1108,12 +1159,12 @@ begin
   disposeObject(L);
 end;
 
-procedure DrawSPLine(sp_desc: TVec2List; bp, ep: Integer; closeLine: Boolean; Color: TDEColor; d: TDrawEngine);
+procedure DrawSPLine(sp_desc: TV2L; bp, ep: Integer; closeLine: Boolean; Color: TDEColor; d: TDrawEngine);
 var
   i: Integer;
-  vl: TVec2List;
+  vl: TV2L;
 begin
-  vl := TVec2List.Create;
+  vl := TV2L.Create;
   for i := bp to ep do
       vl.Add(sp_desc[i]^);
 
@@ -1124,9 +1175,9 @@ end;
 procedure DrawSPLine(sp_desc: TArrayVec2; bp, ep: Integer; closeLine: Boolean; Color: TDEColor; d: TDrawEngine);
 var
   i: Integer;
-  vl: TVec2List;
+  vl: TV2L;
 begin
-  vl := TVec2List.Create;
+  vl := TV2L.Create;
   for i := bp to ep do
       vl.Add(sp_desc[i]);
 
@@ -1134,7 +1185,7 @@ begin
   disposeObject(vl);
 end;
 
-procedure DrawFaceSP(sp_desc: TVec2List; Color: TDEColor; d: TDrawEngine);
+procedure DrawFaceSP(sp_desc: TV2L; Color: TDEColor; d: TDrawEngine);
 begin
   if sp_desc.Count <> 68 then
       exit;
@@ -1194,6 +1245,58 @@ begin
       Train_Dataset := Test_Dataset;
       Test_Dataset := tmp;
     end;
+end;
+
+function Get_Z_AI_File_Type(fn: U_String): TAI_File_Type;
+begin
+  if umlMultipleMatch('*' + C_ImageMatrix_Ext, fn) then
+      Result := ft_ImageMatrix_Ext
+  else if umlMultipleMatch('*' + C_ImageList_Ext, fn) then
+      Result := ft_ImageList_Ext
+  else if umlMultipleMatch('*' + C_OD6L_Ext, fn) then
+      Result := ft_OD6L_Ext
+  else if umlMultipleMatch('*' + C_OD3L_Ext, fn) then
+      Result := ft_OD3L_Ext
+  else if umlMultipleMatch('*' + C_OD6L_Marshal_Ext, fn) then
+      Result := ft_OD6L_Marshal_Ext
+  else if umlMultipleMatch('*' + C_SP_Ext, fn) then
+      Result := ft_SP_Ext
+  else if umlMultipleMatch('*' + C_Metric_Ext, fn) then
+      Result := ft_Metric_Ext
+  else if umlMultipleMatch('*' + C_LMetric_Ext, fn) then
+      Result := ft_LMetric_Ext
+  else if umlMultipleMatch('*' + C_Learn_Ext, fn) then
+      Result := ft_Learn_Ext
+  else if umlMultipleMatch('*' + C_KDTree_Ext, fn) then
+      Result := ft_KDTree_Ext
+  else if umlMultipleMatch('*' + C_MMOD6L_Ext, fn) then
+      Result := ft_MMOD6L_Ext
+  else if umlMultipleMatch('*' + C_MMOD3L_Ext, fn) then
+      Result := ft_MMOD3L_Ext
+  else if umlMultipleMatch('*' + C_RNIC_Ext, fn) then
+      Result := ft_RNIC_Ext
+  else if umlMultipleMatch('*' + C_LRNIC_Ext, fn) then
+      Result := ft_LRNIC_Ext
+  else if umlMultipleMatch('*' + C_GDCNIC_Ext, fn) then
+      Result := ft_GDCNIC_Ext
+  else if umlMultipleMatch('*' + C_GNIC_Ext, fn) then
+      Result := ft_GNIC_Ext
+  else if umlMultipleMatch('*' + C_SS_Ext, fn) then
+      Result := ft_SS_Ext
+  else if umlMultipleMatch('*' + C_ZMetric_Ext, fn) then
+      Result := ft_ZMetric_Ext
+  else if umlMultipleMatch('*' + C_OCR_Model_Package, fn) then
+      Result := ft_OCR_Model_Package
+  else if umlMultipleMatch('*' + C_Sync_Ext, fn) then
+      Result := ft_Sync_Ext
+  else if umlMultipleMatch('*' + C_Sync_Ext2, fn) then
+      Result := ft_Sync_Ext2
+  else if umlMultipleMatch('*' + C_DCGAN_Ext, fn) then
+      Result := ft_DCGAN_Ext
+  else if umlMultipleMatch('*' + C_ZMetric_V2_Ext, fn) then
+      Result := ft_ZMetric_V2_Ext
+  else
+      Result := ft_Unknow;
 end;
 
 function TPas_AI_Classifier_Index_Hash_Tool.Do_Sort_Vec(var L, R: TPas_AI_Index_Hash_Tool_Decl.PPair_Pool_Value__): Integer;
@@ -1293,7 +1396,7 @@ begin
   R.Right := 0;
   R.Bottom := 0;
   Token := '';
-  Part := TVec2List.Create;
+  Part := TV2L.Create;
   PrepareRaster := NewPasAI_Raster();
   Sequence_Token := '';
   Sequence_Index := -1;
@@ -1572,6 +1675,34 @@ begin
   Owner.Raster.ProjectionTo(Result, TV2R4.Init(box, A), Result.BoundsV2Rect40, True, 1.0);
 end;
 
+function TPas_AI_DetectorDefine.IsOverlap: Boolean;
+var
+  i: Integer;
+  r2: TRectV2;
+begin
+  Result := False;
+  if Owner = nil then
+      exit;
+  r2 := RectV2(R);
+  for i := 0 to Owner.DetectorDefineList.Count - 1 do
+    if (Owner.DetectorDefineList[i] <> self) and Rect_Overlap_or_Intersect(r2, RectV2(Owner.DetectorDefineList[i].R)) then
+        exit(True);
+end;
+
+function TPas_AI_DetectorDefine.IsOverlap(Nearest_Distance_: TGeoFloat): Boolean;
+var
+  i: Integer;
+  r2: TRectV2;
+begin
+  Result := False;
+  if Owner = nil then
+      exit;
+  r2 := RectEdge(RectV2(R), Nearest_Distance_);
+  for i := 0 to Owner.DetectorDefineList.Count - 1 do
+    if (Owner.DetectorDefineList[i] <> self) and Rect_Overlap_or_Intersect(r2, RectEdge(RectV2(Owner.DetectorDefineList[i].R), Nearest_Distance_)) then
+        exit(True);
+end;
+
 constructor TPas_AI_Detector_Define_Classifier_Tool.Create;
 begin
   inherited Create(1024, nil);
@@ -1638,7 +1769,7 @@ constructor TDetector_Define_Overlap.Create(Owner_: TDetector_Define_Overlap_Too
 begin
   inherited Create;
   Owner := Owner_;
-  Convex_Hull := TVec2List.Create;
+  Convex_Hull := TV2L.Create;
 end;
 
 destructor TDetector_Define_Overlap.Destroy;
@@ -1652,12 +1783,12 @@ begin
   Result := Data_1 = Data_2;
 end;
 
-function TDetector_Define_Overlap.Compute_Convex_Hull(Extract_Box_: TGeoFloat): TVec2List;
+function TDetector_Define_Overlap.Compute_Convex_Hull(Extract_Box_: TGeoFloat): TV2L;
 var
-  L: TVec2List;
+  L: TV2L;
 begin
   Convex_Hull.Clear;
-  L := TVec2List.Create;
+  L := TV2L.Create;
   if num > 0 then
     with Repeat_ do
       repeat
@@ -1794,7 +1925,7 @@ begin
       DetDef := img.DetectorDefineList[i];
       if not Found_Overlap(DetDef) then
         begin
-          tmp := TDetector_Define_Overlap.Create(Self);
+          tmp := TDetector_Define_Overlap.Create(self);
           inc(Result, tmp.Compute_Overlap(RectV2(DetDef.R), Extract_Box_, img));
           Add(tmp);
         end;
@@ -2569,7 +2700,7 @@ begin
   if FOP_RT <> nil then
       exit;
   FOP_RT := TOpCustomRunTime.Create;
-  FOP_RT.UserObject := Self;
+  FOP_RT.UserObject := self;
 
   { condition on image }
   FOP_RT.RegOpM('Width', 'Width(): Image Width', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_GetWidth)^.Category := 'AI Image';
@@ -2580,6 +2711,10 @@ begin
   FOP_RT.RegOpM('IsTest', 'IsTest(): image is test', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_IsTest)^.Category := 'AI Image';
   FOP_RT.RegOpM('FileInfo', 'FileInfo(): image file info', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_FileInfo)^.Category := 'AI Image';
   FOP_RT.RegOpM('FindAllLabel', 'FindAllLabel(filter): num; return found label(det,geo,seg) num > 0', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_FindLabel)^.Category := 'AI Image';
+  FOP_RT.RegOpM('MD5', 'MD5(): return rasterization md5', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_MD5)^.Category := 'AI Image';
+  FOP_RT.RegOpM('Gradient_MD5', 'Gradient_MD5(): return rasterization Level 16 Gradient md5', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_Gradient_L16_MD5)^.Category := 'AI Image';
+  FOP_RT.RegOpM('Random_Str', 'Random_Str(): return only one random string.', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_Random_Str)^.Category := 'AI Image';
+  FOP_RT.RegOpM('RandomStr', 'RandomStr(): return only one random string.', {$IFDEF FPC}@{$ENDIF FPC}OP_Image_Random_Str)^.Category := 'AI Image';
 
   { condition on detector }
   FOP_RT.RegOpM('Label', 'Label(name): num; return Label num', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_GetLabel)^.Category := 'AI Image';
@@ -2634,6 +2769,7 @@ begin
   FOP_RT.RegOpM('DefLabel', 'DefLabel(newLabel name): new Label name', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_SetLabel)^.Category := 'AI Image';
   FOP_RT.RegOpM('DefineLabel', 'DefineLabel(newLabel name): new Label name', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_SetLabel)^.Category := 'AI Image';
 
+  FOP_RT.RegOpM('RemoveNoDefineDetector', 'RemoveNoDefineDetector(): clean detector box from no define.', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_ClearNoDefine)^.Category := 'AI Image';
   FOP_RT.RegOpM('RemoveNoMatchDetector', 'RemoveNoMatchDetector(label): clean detector box from none match', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_NoMatchClear)^.Category := 'AI Image';
   FOP_RT.RegOpM('ClearDetector', 'ClearDetector(): clean detector box', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_ClearDetector)^.Category := 'AI Image';
   FOP_RT.RegOpM('ClearDet', 'ClearDet(): clean detector box', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_ClearDetector)^.Category := 'AI Image';
@@ -2652,12 +2788,18 @@ begin
   FOP_RT.RegOpM('RemoveMinArea', 'RemoveMinArea(width, height): remove detector from minmize area', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_RemoveMinArea)^.Category := 'AI Image';
   FOP_RT.RegOpM('SetLabelFromArea', 'SetLabelFromArea(minArea, maxArea, label): set label from area', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_SetLabelFromArea)^.Category := 'AI Image';
   FOP_RT.RegOpM('RemoveOutEdgeBox', 'RemoveOutEdgeBox(): remove box from out edge/intersect edge', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_RemoveOutEdge)^.Category := 'AI Image';
+  FOP_RT.RegOpM('RemoveOverlap', 'RemoveOverlap() or RemoveOverlap(Distance): remove overlap box', {$IFDEF FPC}@{$ENDIF FPC}OP_Detector_RemoveOverlap)^.Category := 'AI Image';
 
   FOP_RT.RegOpM('Replace', 'Replace(OldPattern, NewPattern): replace detector, geometry, segment label', {$IFDEF FPC}@{$ENDIF FPC}OP_Replace)^.Category := 'AI Image';
 
+  FOP_RT.RegOpM('S2PY', 'S2PY(): FastGBK translation Simplified of Pinyin', {$IFDEF FPC}@{$ENDIF FPC}OP_S2PY)^.Category := 'AI Image';
+  FOP_RT.RegOpM('S2PY2', 'S2PY2(): GBK translation Simplified of Pinyin', {$IFDEF FPC}@{$ENDIF FPC}OP_S2PY2)^.Category := 'AI Image';
+  FOP_RT.RegOpM('S2T', 'S2T(): Simplified to Traditional', {$IFDEF FPC}@{$ENDIF FPC}OP_S2T)^.Category := 'AI Image';
+  FOP_RT.RegOpM('S2H', 'S2H(): Simplified to Hongkong Traditional (built-in vocabulary conversion)', {$IFDEF FPC}@{$ENDIF FPC}OP_S2H)^.Category := 'AI Image';
+  FOP_RT.RegOpM('T2S', 'T2S(): Traditional to Simplified (built-in vocabulary conversion)', {$IFDEF FPC}@{$ENDIF FPC}OP_T2S)^.Category := 'AI Image';
   { external image processor }
   if Assigned(On_Script_RegisterProc) then
-      On_Script_RegisterProc(Self, FOP_RT);
+      On_Script_RegisterProc(self, FOP_RT);
 end;
 
 function TPas_AI_Image.OP_Image_GetWidth(var Param: TOpParam): Variant;
@@ -2706,6 +2848,42 @@ begin
           inc(num);
     end;
   Result := num > 0;
+end;
+
+function TPas_AI_Image.OP_Image_MD5(var Param: TOpParam): Variant;
+begin
+  Result := umlMD5ToStr(Raster.GetMD5).Text;
+end;
+
+function TPas_AI_Image.OP_Image_Gradient_L16_MD5(var Param: TOpParam): Variant;
+begin
+  Result := umlMD5ToStr(Raster.Get_Gradient_L16_MD5).Text;
+end;
+
+function TPas_AI_Image.OP_Image_Random_Str(var Param: TOpParam): Variant;
+type
+  TDecode_Data_ = packed record
+    d: TDateTime;
+    i64: Int64;
+    i32: Integer;
+    MT_ID: Cardinal;
+    TK: TTimeTick;
+    MD5: TMD5;
+  end;
+var
+  R: TDecode_Data_;
+begin
+  TCompute.Sleep(1);
+  with R do
+    begin
+      d := umlNow();
+      i64 := TMT19937.Rand64;
+      i32 := TMT19937.Rand32;
+      MT_ID := MainInstance;
+      TK := GetTimeTick();
+      MD5 := Raster.GetMD5;
+    end;
+  Result := umlMD5String(@R, SizeOf(TDecode_Data_)).Text;
 end;
 
 function TPas_AI_Image.OP_Detector_GetLabel(var Param: TOpParam): Variant;
@@ -2933,6 +3111,26 @@ begin
       n := '';
   for i := 0 to DetectorDefineList.Count - 1 do
       DetectorDefineList[i].Token := n;
+  Result := True;
+end;
+
+function TPas_AI_Image.OP_Detector_ClearNoDefine(var Param: TOpParam): Variant;
+var
+  i: Integer;
+  det: TPas_AI_DetectorDefine;
+begin
+  i := 0;
+  while i < DetectorDefineList.Count do
+    begin
+      det := DetectorDefineList[i];
+      if det.Token = '' then
+        begin
+          DetectorDefineList.Delete(i);
+          disposeObject(det);
+        end
+      else
+          inc(i);
+    end;
   Result := True;
 end;
 
@@ -3181,6 +3379,36 @@ begin
   Result := True;
 end;
 
+function TPas_AI_Image.OP_Detector_RemoveOverlap(var Param: TOpParam): Variant;
+var
+  L: TDetector_Define_List;
+  i: Integer;
+begin
+  L := TDetector_Define_List.Create(nil);
+  if length(Param) > 0 then
+    begin
+      for i := DetectorDefineList.Count - 1 downto 0 do
+        if DetectorDefineList[i].IsOverlap(Param[0]) then
+          begin
+            L.Add(DetectorDefineList[i]);
+            DetectorDefineList.Delete(i);
+          end;
+    end
+  else
+    begin
+      for i := DetectorDefineList.Count - 1 downto 0 do
+        if DetectorDefineList[i].IsOverlap then
+          begin
+            L.Add(DetectorDefineList[i]);
+            DetectorDefineList.Delete(i);
+          end;
+    end;
+
+  for i := 0 to L.Count - 1 do
+      disposeObject(L[i]);
+  disposeObject(L);
+end;
+
 function TPas_AI_Image.OP_Replace(var Param: TOpParam): Variant;
 var
   i: Integer;
@@ -3201,12 +3429,92 @@ begin
   Result := True;
 end;
 
+function TPas_AI_Image.OP_S2PY(var Param: TOpParam): Variant;
+var
+  i: Integer;
+begin
+  for i := 0 to DetectorDefineList.Count - 1 do
+    begin
+      DetectorDefineList[i].Sequence_Token := FastPYNoSpace(DetectorDefineList[i].Sequence_Token.Text).Text;
+      DetectorDefineList[i].Token := FastPYNoSpace(DetectorDefineList[i].Token.Text).Text;
+    end;
+  for i := 0 to SegmentationMaskList.Count - 1 do
+    begin
+      SegmentationMaskList[i]^.Token := FastPYNoSpace(SegmentationMaskList[i]^.Token.Text).Text;
+    end;
+  Result := True;
+end;
+
+function TPas_AI_Image.OP_S2PY2(var Param: TOpParam): Variant;
+var
+  i: Integer;
+begin
+  for i := 0 to DetectorDefineList.Count - 1 do
+    begin
+      DetectorDefineList[i].Sequence_Token := PyNoSpace(DetectorDefineList[i].Sequence_Token.Text).Text;
+      DetectorDefineList[i].Token := PyNoSpace(DetectorDefineList[i].Token.Text).Text;
+    end;
+  for i := 0 to SegmentationMaskList.Count - 1 do
+    begin
+      SegmentationMaskList[i]^.Token := PyNoSpace(SegmentationMaskList[i]^.Token.Text).Text;
+    end;
+  Result := True;
+end;
+
+function TPas_AI_Image.OP_S2T(var Param: TOpParam): Variant;
+var
+  i: Integer;
+begin
+  for i := 0 to DetectorDefineList.Count - 1 do
+    begin
+      DetectorDefineList[i].Sequence_Token := S2T(DetectorDefineList[i].Sequence_Token.Text).Text;
+      DetectorDefineList[i].Token := S2T(DetectorDefineList[i].Token.Text).Text;
+    end;
+  for i := 0 to SegmentationMaskList.Count - 1 do
+    begin
+      SegmentationMaskList[i]^.Token := S2T(SegmentationMaskList[i]^.Token.Text).Text;
+    end;
+  Result := True;
+end;
+
+function TPas_AI_Image.OP_S2H(var Param: TOpParam): Variant;
+var
+  i: Integer;
+begin
+  for i := 0 to DetectorDefineList.Count - 1 do
+    begin
+      DetectorDefineList[i].Sequence_Token := S2HK(DetectorDefineList[i].Sequence_Token.Text).Text;
+      DetectorDefineList[i].Token := S2HK(DetectorDefineList[i].Token.Text).Text;
+    end;
+  for i := 0 to SegmentationMaskList.Count - 1 do
+    begin
+      SegmentationMaskList[i]^.Token := S2HK(SegmentationMaskList[i]^.Token.Text).Text;
+    end;
+  Result := True;
+end;
+
+function TPas_AI_Image.OP_T2S(var Param: TOpParam): Variant;
+var
+  i: Integer;
+begin
+  for i := 0 to DetectorDefineList.Count - 1 do
+    begin
+      DetectorDefineList[i].Sequence_Token := T2S(DetectorDefineList[i].Sequence_Token.Text).Text;
+      DetectorDefineList[i].Token := T2S(DetectorDefineList[i].Token.Text).Text;
+    end;
+  for i := 0 to SegmentationMaskList.Count - 1 do
+    begin
+      SegmentationMaskList[i]^.Token := T2S(SegmentationMaskList[i]^.Token.Text).Text;
+    end;
+  Result := True;
+end;
+
 constructor TPas_AI_Image.Create(Owner_: TPas_AI_ImageList);
 begin
   inherited Create;
   Owner := Owner_;
-  DetectorDefineList := TDetector_Define_List.Create(Self);
-  SegmentationMaskList := TSegmentationMasks.Create(Self);
+  DetectorDefineList := TDetector_Define_List.Create(self);
+  SegmentationMaskList := TSegmentationMasks.Create(self);
   Raster := NewPasAI_Raster();
   FileInfo := '';
   FOP_RT := nil;
@@ -3593,7 +3901,7 @@ begin
       m64 := TMS64.Create;
       de.Reader.ReadStream(m64);
       m64.Position := 0;
-      DetDef := TPas_AI_DetectorDefine.Create(Self);
+      DetDef := TPas_AI_DetectorDefine.Create(self);
       DetDef.LoadFromStream(m64);
       disposeObject(m64);
       DetectorDefineList.Add(DetDef);
@@ -4048,6 +4356,38 @@ begin
           disposeObject(Items[index]);
       inherited Delete(index);
     end;
+end;
+
+function TPas_AI_ImageList.Get_Learn_Reverse_Detector(Data_: U_String): TPas_AI_DetectorDefine;
+var
+  t: TTextParsing;
+  SplitOutput: TP_ArrayString;
+  i, j: Integer;
+  img: TPas_AI_Image;
+begin
+  Result := nil;
+  t := TTextParsing.Create(Data_, tsText, nil);
+  if t.SplitChar(1, ',:', '', SplitOutput) = 3 then
+    begin
+      i := umlStrToInt(SplitOutput[1]);
+      j := umlStrToInt(SplitOutput[2]);
+      if umlInRange(i, 0, Count - 1) then
+        begin
+          img := Items[i];
+          if umlInRange(j, 0, img.DetectorDefineList.Count - 1) then
+              Result := img.DetectorDefineList[j];
+        end;
+    end;
+  SetLength(SplitOutput, 0);
+  disposeObject(t);
+end;
+
+procedure TPas_AI_ImageList.Update_ID;
+var
+  i: Integer;
+begin
+  for i := 0 to Count - 1 do
+      Items[i].ID := i;
 end;
 
 procedure TPas_AI_ImageList.Remove(img: TPas_AI_Image);
@@ -4544,7 +4884,7 @@ begin
       m64 := TMS64.Create;
       imgList[i].SaveToStream(m64, True, TPasAI_RasterSaveFormat.rsRGB);
 
-      imgData := TPas_AI_Image.Create(Self);
+      imgData := TPas_AI_Image.Create(self);
       m64.Position := 0;
       imgData.LoadFromStream(m64, True);
       Add(imgData);
@@ -4557,7 +4897,7 @@ function TPas_AI_ImageList.AddPicture(stream: TCore_Stream): TPas_AI_Image;
 var
   img: TPas_AI_Image;
 begin
-  img := TPas_AI_Image.Create(Self);
+  img := TPas_AI_Image.Create(self);
   disposeObject(img.Raster);
   try
     img.Raster := NewPasAI_RasterFromStream(stream);
@@ -4573,7 +4913,7 @@ function TPas_AI_ImageList.AddPicture(fileName: SystemString): TPas_AI_Image;
 var
   img: TPas_AI_Image;
 begin
-  img := TPas_AI_Image.Create(Self);
+  img := TPas_AI_Image.Create(self);
   disposeObject(img.Raster);
   try
     img.Raster := NewPasAI_RasterFromFile(fileName);
@@ -4589,7 +4929,7 @@ function TPas_AI_ImageList.AddPicture(R: TMPasAI_Raster; instance_: Boolean): TP
 var
   img: TPas_AI_Image;
 begin
-  img := TPas_AI_Image.Create(Self);
+  img := TPas_AI_Image.Create(self);
   if instance_ then
     begin
       disposeObject(img.Raster);
@@ -4613,7 +4953,7 @@ var
   img: TPas_AI_Image;
   DetDef: TPas_AI_DetectorDefine;
 begin
-  img := TPas_AI_Image.Create(Self);
+  img := TPas_AI_Image.Create(self);
   img.Raster.Assign(mr);
   DetDef := TPas_AI_DetectorDefine.Create(img);
   DetDef.R := R;
@@ -4663,7 +5003,7 @@ var
         tmpBuffer[i].stream := TMS64.Create;
         de.Reader.ReadStream(tmpBuffer[i].stream);
         tmpBuffer[i].stream.Position := 0;
-        tmpBuffer[i].imgData := TPas_AI_Image.Create(Self);
+        tmpBuffer[i].imgData := TPas_AI_Image.Create(self);
         Add(tmpBuffer[i].imgData);
       end;
     disposeObject(de);
@@ -4715,6 +5055,7 @@ begin
   DoFor;
 {$ENDIF Parallel}
   FreePrepareData();
+  Update_ID;
 end;
 
 procedure TPas_AI_ImageList.LoadFromStream(stream: TCore_Stream);
@@ -4825,9 +5166,9 @@ var
     imgData: TPas_AI_Image;
   begin
     m64 := TMS64.Create;
-    LockObject(Self);
+    LockObject(self);
     imgData := Items[pass];
-    UnLockObject(Self);
+    UnLockObject(self);
     imgData.SaveToStream(m64, SaveImg, PasAI_RasterSave_);
     tmpBuffer[pass] := m64;
   end;
@@ -4842,9 +5183,9 @@ var
     for pass := 0 to Count - 1 do
       begin
         m64 := TMS64.Create;
-        LockObject(Self);
+        LockObject(self);
         imgData := Items[pass];
-        UnLockObject(Self);
+        UnLockObject(self);
         imgData.SaveToStream(m64, SaveImg, PasAI_RasterSave_);
         tmpBuffer[pass] := m64;
       end;
@@ -4878,9 +5219,9 @@ begin
       imgData: TPas_AI_Image;
     begin
       m64 := TMS64.Create;
-      LockObject(Self);
+      LockObject(self);
       imgData := Items[pass];
-      UnLockObject(Self);
+      UnLockObject(self);
       imgData.SaveToStream(m64, SaveImg, PasAI_RasterSave_);
       tmpBuffer[pass] := m64;
     end);
@@ -6981,6 +7322,47 @@ begin
   imgL.ID := Count - 1;
 end;
 
+procedure TPas_AI_ImageMatrix.Update_ID;
+var
+  i: Integer;
+begin
+  for i := 0 to Count - 1 do
+    begin
+      Items[i].ID := i;
+      Items[i].Update_ID;
+    end;
+end;
+
+function TPas_AI_ImageMatrix.Get_Learn_Reverse_Detector(Data_: U_String): TPas_AI_DetectorDefine;
+var
+  t: TTextParsing;
+  SplitOutput: TP_ArrayString;
+  i, j, k: Integer;
+  imgL: TPas_AI_ImageList;
+  img: TPas_AI_Image;
+begin
+  Result := nil;
+  t := TTextParsing.Create(Data_, tsText, nil);
+  if t.SplitChar(1, ',:', '', SplitOutput) = 3 then
+    begin
+      i := umlStrToInt(SplitOutput[0]);
+      j := umlStrToInt(SplitOutput[1]);
+      k := umlStrToInt(SplitOutput[2]);
+      if umlInRange(i, 0, Count - 1) then
+        begin
+          imgL := Items[i];
+          if umlInRange(j, 0, imgL.Count - 1) then
+            begin
+              img := imgL[j];
+              if umlInRange(k, 0, img.DetectorDefineList.Count - 1) then
+                  Result := img.DetectorDefineList[k];
+            end;
+        end;
+    end;
+  SetLength(SplitOutput, 0);
+  disposeObject(t);
+end;
+
 function TPas_AI_ImageMatrix.RunScript(RSeri: TPasAI_RasterSerialized; ScriptStyle: TTextStyle; condition_exp, process_exp: SystemString): Integer;
 var
   i: Integer;
@@ -7037,7 +7419,7 @@ procedure TPas_AI_ImageMatrix.SearchAndAddImageList(RSeri: TPasAI_RasterSerializ
     i: Integer;
   begin
     FL := TPascalStringList.Create;
-    umlGetFileList(ph, FL);
+    uml_Get_File_To_List(ph, FL);
 
     for i := 0 to FL.Count - 1 do
       if umlMultipleMatch(filter, FL[i]) then
@@ -7053,7 +7435,7 @@ procedure TPas_AI_ImageMatrix.SearchAndAddImageList(RSeri: TPasAI_RasterSerializ
     if includeSubdir then
       begin
         dl := TPascalStringList.Create;
-        umlGetDirList(ph, dl);
+        uml_Get_Dir_To_List(ph, dl);
         for i := 0 to dl.Count - 1 do
           begin
             if Prefix.Len > 0 then
@@ -7074,49 +7456,79 @@ begin
   SearchAndAddImageList(nil, rootPath, filter, includeSubdir, LoadImg);
 end;
 
-procedure TPas_AI_ImageMatrix.ImportImageListAsFragment(RSeri: TPasAI_RasterSerialized; imgList: TPas_AI_ImageList; RemoveSource: Boolean);
+procedure TPas_AI_ImageMatrix.ImportImageListAsFragment(RSeri: TPasAI_RasterSerialized; imgList: TPas_AI_ImageList);
 var
   i: Integer;
   img: TPas_AI_Image;
-  m64: TMS64;
   nImgL: TPas_AI_ImageList;
   nImg: TPas_AI_Image;
 begin
+  if RSeri <> nil then
+      imgList.SerializedAndRecycleMemory(RSeri);
+
   for i := 0 to imgList.Count - 1 do
     begin
       img := imgList[i];
       nImgL := TPas_AI_ImageList.Create;
       nImgL.FileInfo := PFormat('%s_fragment(%d)', [imgList.FileInfo.Text, i + 1]);
 
-      if RemoveSource then
-        begin
-          nImg := img;
-          nImg.Owner := nImgL;
-          nImgL.Add(nImg);
-        end
-      else
-        begin
-          m64 := TMS64.Create;
-          img.SaveToStream(m64);
-          m64.Position := 0;
-
-          nImg := TPas_AI_Image.Create(nImgL);
-          nImg.LoadFromStream(m64);
-          nImgL.Add(nImg);
-          disposeObject(m64);
-        end;
-
-      if RSeri <> nil then
-          imgList.SerializedAndRecycleMemory(RSeri);
+      nImg := img;
+      nImg.Owner := nImgL;
+      nImgL.Add(nImg);
       Add(nImgL);
     end;
-  if RemoveSource then
-      imgList.Clear(False);
+  imgList.Clear(False);
+
+  Update_ID;
 end;
 
-procedure TPas_AI_ImageMatrix.ImportImageListAsFragment(imgList: TPas_AI_ImageList; RemoveSource: Boolean);
+procedure TPas_AI_ImageMatrix.ImportImageListAsFragment(imgList: TPas_AI_ImageList);
 begin
-  ImportImageListAsFragment(nil, imgList, RemoveSource);
+  ImportImageListAsFragment(nil, imgList);
+end;
+
+procedure TPas_AI_ImageMatrix.ImportImageList_As_Double_Group(RSeri: TPasAI_RasterSerialized; imgList: TPas_AI_ImageList);
+  procedure Do_Import(bIndex, eIndex, gIndex: Integer);
+  var
+    i: Integer;
+    img: TPas_AI_Image;
+    nImgL: TPas_AI_ImageList;
+    nImg: TPas_AI_Image;
+  begin
+    nImgL := TPas_AI_ImageList.Create;
+    nImgL.FileInfo := PFormat('%s_group(%d)', [imgList.FileInfo.Text, gIndex]);
+
+    for i := bIndex to eIndex do
+      begin
+        img := imgList[i];
+        nImg := img;
+        nImg.Owner := nImgL;
+        nImgL.Add(nImg);
+      end;
+    Add(nImgL);
+  end;
+
+begin
+  if imgList.Count < 3 then
+    begin
+      ImportImageListAsFragment(RSeri, imgList);
+      exit;
+    end;
+
+  if RSeri <> nil then
+      imgList.SerializedAndRecycleMemory(RSeri);
+
+  Do_Import(0, (imgList.Count shr 1) - 1, 1);
+  Do_Import(imgList.Count shr 1, imgList.Count - 1, 2);
+
+  imgList.Clear(False);
+
+  Update_ID();
+end;
+
+procedure TPas_AI_ImageMatrix.ImportImageList_As_Double_Group(imgList: TPas_AI_ImageList);
+begin
+  ImportImageList_As_Double_Group(nil, imgList);
 end;
 
 procedure TPas_AI_ImageMatrix.SaveToStream(stream: TCore_Stream; SaveImg: Boolean; PasAI_RasterSave_: TPasAI_RasterSaveFormat);
@@ -7333,6 +7745,7 @@ begin
   Load_For();
 {$ENDIF Parallel}
   disposeObject(PrepareLoadBuffer);
+  Update_ID;
   DoStatus('Load Image Matrix done.');
 end;
 
@@ -8474,6 +8887,7 @@ begin
   disposeObject(Critical);
   disposeObject(PrepareLoadBuffer);
   disposeObject(DBEng);
+  Update_ID;
   DoStatus('Load Image Matrix done.');
 end;
 
@@ -8876,7 +9290,7 @@ var
     i: Integer;
     n: U_SystemString;
   begin
-    arry := umlGetDirListPath(Directory_);
+    arry := umlGet_Path_Array(Directory_);
     for i := 0 to length(arry) - 1 do
       begin
         n := arry[i];
@@ -8889,7 +9303,7 @@ begin
     begin
       imgL := TPas_AI_ImageList.Create;
       imgL.FileInfo := classificName;
-      arry := umlGetFileListWithFullPath(Directory_);
+      arry := umlGet_File_Full_Array(Directory_);
 
 {$IFDEF Parallel}
       Critical_ := TCritical.Create;

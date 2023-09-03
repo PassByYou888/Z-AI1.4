@@ -16,12 +16,13 @@ uses Variants, SysUtils,
   PasAI.Parsing, PasAI.Pascal_Code_Tool, PasAI.Expression, PasAI.OpCode,
   PasAI.Json, PasAI.HashList.Templet,
   PasAI.Notify, PasAI.Cipher, PasAI.MemoryStream,
+  PasAI.FragmentBuffer, // solve for discontinuous space
   PasAI.Net, PasAI.Net.PhysicsIO, PasAI.Net.DoubleTunnelIO.NoAuth, PasAI.Net.C4,
   PasAI.ZDB2, PasAI.ZDB2.FileEncoder,
   PasAI.Pascal_Rewrite_Model_Data;
 
 type
-  TUnitRewriteService_IO_Define_ = class(TPeerClientUserDefineForRecvTunnel_NoAuth)
+  TUnitRewriteService_IO_Define_ = class(TService_RecvTunnel_UserDefine_NoAuth)
   public
     UnitRewriteProcessor: TSource_Processor_Data_Pool;
     SymbolRewriteProcessor: TSource_Processor_Data_Pool;

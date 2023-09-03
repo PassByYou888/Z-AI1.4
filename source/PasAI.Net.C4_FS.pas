@@ -16,6 +16,7 @@ uses
   PasAI.Core, PasAI.PascalStrings, PasAI.UPascalStrings, PasAI.Status, PasAI.UnicodeMixedLib, PasAI.ListEngine,
   PasAI.Geometry2D, PasAI.DFE, PasAI.Json, PasAI.Expression, PasAI.OpCode,
   PasAI.Notify, PasAI.Cipher, PasAI.MemoryStream,
+  PasAI.FragmentBuffer, // solve for discontinuous space
   PasAI.ZDB2, PasAI.ZDB2.MS64, PasAI.HashList.Templet,
   PasAI.Net, PasAI.Net.PhysicsIO, PasAI.Net.DoubleTunnelIO.NoAuth, PasAI.Net.C4;
 
@@ -479,9 +480,21 @@ begin
   FileHashPool.IgnoreCase := True;
 
   if EStrToBool(ParamList.GetDefaultValue('ForeverSave', 'True'), True) and umlFileExists(C40_FS_FileName) then
-      FS := TCore_FileStream.Create(C40_FS_FileName, fmOpenReadWrite)
+    begin
+{$IFDEF C4_Safe_Flush}
+      FS := TSafe_Flush_Stream.Create(C40_FS_FileName, False, True);
+{$ELSE C4_Safe_Flush}
+      FS := TCore_FileStream.Create(C40_FS_FileName, fmOpenReadWrite);
+{$ENDIF C4_Safe_Flush}
+    end
   else
+    begin
+{$IFDEF C4_Safe_Flush}
+      FS := TSafe_Flush_Stream.Create(C40_FS_FileName, True, True);
+{$ELSE C4_Safe_Flush}
       FS := TCore_FileStream.Create(C40_FS_FileName, fmCreate);
+{$ENDIF C4_Safe_Flush}
+    end;
 
   FileDatabase := TZDB2_List_MS64.Create(
   TZDB2_MS64,

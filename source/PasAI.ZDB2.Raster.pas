@@ -35,7 +35,7 @@ type
     destructor Destroy; override;
     procedure Progress; virtual;
     procedure Load;
-    procedure Save;
+    procedure Flush;
     procedure RecycleMemory;
     procedure Remove;
     function GetData: TPasAI_Raster;
@@ -108,7 +108,7 @@ end;
 
 destructor TZDB2_Raster.Destroy;
 begin
-  Save;
+  Flush;
   inherited Destroy;
 end;
 
@@ -118,7 +118,7 @@ begin
       exit;
   if (Keep <= 0) and (GetTimeTick - FAlive > FTimeOut) then
     begin
-      Save;
+      Flush;
 {$IFDEF SHOW_ZDB2_Data_Free_LOG}
       DoStatus('%s -> %s Space Recycle ID %s size:%d', [UnitName, ClassName, CoreSpace.GetSpaceHndAsText(FID).Text, CoreSpace.GetDataSize(FID)]);
 {$ENDIF SHOW_ZDB2_Data_Free_LOG}
@@ -149,7 +149,7 @@ begin
   DisposeObject(m64);
 end;
 
-procedure TZDB2_Raster.Save;
+procedure TZDB2_Raster.Flush;
 var
   m64: TMS64;
   old_ID: Integer;
@@ -337,7 +337,7 @@ begin
             DisposeObjectAndNil(__For__.Queue^.Data);
           end
         else
-            __For__.Queue^.Data.Save;
+            __For__.Queue^.Data.Flush;
       until not __For__.Next;
       List.Free_Recycle_Pool;
     end;
@@ -369,7 +369,7 @@ begin
     end;
 
   if flush_core_space then
-      CoreSpace.Save;
+      CoreSpace.Flush;
 end;
 
 procedure TZDB2_List_Raster.Flush;
@@ -416,7 +416,7 @@ begin
   else
       FillPtr(@TmpSpace.UserCustomHeader^[0], SizeOf(TSequence_Table_Head), 0);
 
-  TmpSpace.Save;
+  TmpSpace.Flush;
   DisposeObject(TmpSpace);
 end;
 
@@ -482,7 +482,7 @@ begin
         begin
           tmp_Raster := NewData();
           tmp_Raster.Data.SetSize(64 + i, 64 + i);
-          tmp_Raster.Save;
+          tmp_Raster.Flush;
         end;
       DoStatus('build %d of Raster,time:%dms', [List.num, GetTimeTick - tk]);
       Free;

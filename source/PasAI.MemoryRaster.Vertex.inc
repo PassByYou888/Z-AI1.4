@@ -587,16 +587,16 @@ begin
   DrawRect(SamVec, TV2Rect4.Init(RenVec, RenAngle), Sampler, bilinear_sampling, alpha);
 end;
 
-procedure TPasAI_RasterVertex.FillPoly(const RenVec: TVec2List; const cen: TVec2; const Sampler: TRColor);
+procedure TPasAI_RasterVertex.FillPoly(const RenVec: TV2L; const cen: TVec2; const Sampler: TRColor);
 var
-  RV: TVec2List;
+  RV: TV2L;
   rCen: TVec2;
   i: Integer;
   RenderTri: TTriangle;
 begin
   NewWriterBuffer;
 
-  RV := TVec2List.Create;
+  RV := TV2L.Create;
   RV.Assign(RenVec);
   RV.FDiv(Window.Width0, Window.Height0);
   rCen := Vec2Div(cen, Window.Size0);
@@ -616,14 +616,14 @@ begin
   DisposeObject(RV);
 end;
 
-procedure TPasAI_RasterVertex.FillPoly(const RenVec: TVec2List; const Sampler: TRColor);
+procedure TPasAI_RasterVertex.FillPoly(const RenVec: TV2L; const Sampler: TRColor);
 begin
   FillPoly(RenVec, RenVec.Centroid, Sampler);
 end;
 
-procedure TPasAI_RasterVertex.FillPoly(const SamVec, RenVec: TVec2List; const SamCen, RenCen: TVec2; const Sampler: TMPasAI_Raster; const bilinear_sampling: Boolean; const alpha: TGeoFloat);
+procedure TPasAI_RasterVertex.FillPoly(const SamVec, RenVec: TV2L; const SamCen, RenCen: TVec2; const Sampler: TMPasAI_Raster; const bilinear_sampling: Boolean; const alpha: TGeoFloat);
 var
-  SV, RV: TVec2List;
+  SV, RV: TV2L;
   sCen, rCen: TVec2;
   i: Integer;
   SamplerTri, RenderTri: TTriangle;
@@ -633,12 +633,12 @@ begin
 
   NewWriterBuffer;
 
-  SV := TVec2List.Create;
+  SV := TV2L.Create;
   SV.Assign(SamVec);
   SV.FDiv(Sampler.Width0, Sampler.Height0);
   sCen := Vec2Div(SamCen, Sampler.Size0);
 
-  RV := TVec2List.Create;
+  RV := TV2L.Create;
   RV.Assign(RenVec);
   RV.FDiv(Window.Width0, Window.Height0);
   rCen := Vec2Div(RenCen, Window.Size0);
@@ -668,7 +668,7 @@ begin
   DisposeObject(RV);
 end;
 
-procedure TPasAI_RasterVertex.FillPoly(const SamVec, RenVec: TVec2List; const Sampler: TMPasAI_Raster; const bilinear_sampling: Boolean; const alpha: TGeoFloat);
+procedure TPasAI_RasterVertex.FillPoly(const SamVec, RenVec: TV2L; const Sampler: TMPasAI_Raster; const bilinear_sampling: Boolean; const alpha: TGeoFloat);
 begin
   FillPoly(SamVec, RenVec, SamVec.Centroid, RenVec.Centroid, Sampler, bilinear_sampling, alpha);
 end;

@@ -1,0 +1,67 @@
+object _141_ZM2_Reverse_Tech_DemoForm: T_141_ZM2_Reverse_Tech_DemoForm
+  Left = 0
+  Top = 0
+  Caption = 'ZM2'#21453#25512#25216#26415
+  ClientHeight = 522
+  ClientWidth = 1044
+  StyleBook = StyleDataModule.GlobalStyleBook
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnMouseDown = FormMouseDown
+  OnMouseMove = FormMouseMove
+  OnMouseUp = FormMouseUp
+  OnMouseWheel = FormMouseWheel
+  OnPaint = FormPaint
+  DesignerMasterStyle = 0
+  object fpsTimer: TTimer
+    Interval = 20
+    OnTimer = fpsTimerTimer
+    Left = 72
+    Top = 72
+  end
+  object clear_box_Button: TButton
+    Anchors = [akTop, akRight]
+    Position.X = 952.000000000000000000
+    Position.Y = 16.000000000000000000
+    Size.Width = 80.000000000000000000
+    Size.Height = 33.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+    Text = #28165#26694
+    OnClick = clear_box_ButtonClick
+  end
+  object TrainingButton: TButton
+    Anchors = [akTop, akRight]
+    Position.X = 952.000000000000000000
+    Position.Y = 56.000000000000000000
+    Size.Width = 80.000000000000000000
+    Size.Height = 33.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 5
+    Text = #35757#32451
+    OnClick = TrainingButtonClick
+  end
+  object Test_Button: TButton
+    Anchors = [akTop, akRight]
+    Position.X = 936.000000000000000000
+    Position.Y = 136.000000000000000000
+    Size.Width = 97.000000000000000000
+    Size.Height = 33.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 6
+    Text = #27979#35797#35757#32451#32467#26524
+    OnClick = Test_ButtonClick
+  end
+  object remove_Button: TButton
+    Anchors = [akTop, akRight]
+    Position.X = 952.000000000000000000
+    Position.Y = 96.000000000000000000
+    Size.Width = 80.000000000000000000
+    Size.Height = 33.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+    Text = #31227#38500#35757#32451
+    OnClick = remove_ButtonClick
+  end
+end

@@ -31,8 +31,10 @@ type
     destructor Destroy; override;
     procedure Reset();
     procedure Assign(source_: TZDB2_FFMPEG_Data_Head);
-    procedure Encode(m64: TMS64);
-    procedure Decode(m64: TMS64);
+    procedure Encode(m64: TMS64); overload;
+    procedure Encode(m64: TMem64); overload;
+    procedure Decode(m64: TMS64); overload;
+    procedure Decode(m64: TMem64); overload;
     function Get_Time_Tick_Long: TTimeTick;
     function Frame_ID_As_Time(ID: Int64): TDateTime;
     function Get_Task_Time_Stamp: Int64; // return TRV2_Data.Task_Time_Stamp
@@ -42,17 +44,26 @@ type
 
   TZDB2_FFMPEG_Data = class(TZDB2_Th_Engine_Data)
   private
-    Sequence_ID: UInt64;
+    FSequence_ID: Int64;
     FH264_Data_Position: Int64;
   public
     Owner_FFMPEG_Data_Marshal: TZDB2_FFMPEG_Data_Marshal;
     Head: TZDB2_FFMPEG_Data_Head;
+    property Sequence_ID: Int64 read FSequence_ID;
     property H264_Data_Position: Int64 read FH264_Data_Position;
     constructor Create; override;
     destructor Destroy; override;
     procedure Do_Remove(); override;
     function Sync_Get_H264_Head_And_Data(): TMS64;
+    { Extended Data Header Technology for Solving the Decentralized performance Problem of hdd }
+    { When the data volume is large, a dataset contains dozens or hundreds of small databases. During disk operation, disk pre reads will be read in blocks, which greatly consumes HDD read time }
+    { Expanding the data header is to gather thousands of fragmented databases and read them all at once, thereby improving the startup efficiency of the database. At the same time, pre reading also requires higher memory requirements }
+    { Pre reading technology can improve data loading efficiency in the vast majority of hdd systems }
+    procedure Encode_External_Header_Data(External_Header_Data: TMem64); virtual;
+    procedure Decode_External_Header_Data(External_Header_Data: TMem64); virtual;
   end;
+
+  TZDB2_FFMPEG_Data_Sequence_ID_Pool = {$IFDEF FPC}specialize {$ENDIF FPC} TCritical_Big_Hash_Pair_Pool<Int64, TZDB2_FFMPEG_Data>;
 
   TFFMPEG_Data_Analysis_Struct = record
   public
@@ -110,32 +121,37 @@ type
     procedure Remove_From_Time(First_Time_Minute_Span: Double);
   end;
 
-  TZDB2_FFMPEG_Data_Th_Engine = class(TZDB2_Th_Engine)
+  TZDB2_FFMPEG_Engine_Marshal__ = class(TZDB2_Th_Engine_Marshal)
   public
-    constructor Create(Owner_: TZDB2_Th_Engine_Marshal); override;
-    destructor Destroy; override;
+    // large-data external-header support
+    procedure Prepare_Flush_External_Header(Th_Engine_: TZDB2_Th_Engine; var Sequence_Table: TZDB2_BlockHandle; Flush_Instance_Pool: TZDB2_Th_Engine_Data_Instance_Pool; External_Header_Data_: TMem64); override;
+    procedure Do_Extract_Th_Eng(ThSender: TCompute); virtual;
+    procedure Extract_External_Header(var Extract_Done: Boolean); virtual;
   end;
 
   TZDB2_FFMPEG_Data_Marshal = class
   private
-    Current_Sequence_ID: UInt64;
+    FCurrent_Sequence_ID: Int64;
     Update_Analysis_Data_Is_Busy: Boolean;
     procedure Do_Th_Data_Loaded(Sender: TZDB2_Th_Engine_Data; IO_: TMS64);
+    procedure Do_Th_Block_Loaded(Sender: TZDB2_Th_Engine_Data; IO_: TMem64);
     function Do_Sort_By_Sequence_ID(var L, R: TZDB2_Th_Engine_Data): Integer;
   public
     Critical: TCritical;
-    ZDB2_Eng: TZDB2_Th_Engine_Marshal;
+    ZDB2_Eng: TZDB2_FFMPEG_Engine_Marshal__;
+    Sequence_ID_Pool: TZDB2_FFMPEG_Data_Sequence_ID_Pool;
     Source_Analysis, clip_Analysis: TFFMPEG_Data_Analysis_Hash_Pool;
     constructor Create;
     destructor Destroy; override;
-    function BuildMemory(): TZDB2_FFMPEG_Data_Th_Engine;
+    // build memory db
+    function BuildMemory(): TZDB2_Th_Engine;
     // if encrypt=true defualt password 'DTC40@ZSERVER'
-    function BuildOrOpen(FileName_: U_String; OnlyRead_, Encrypt_: Boolean): TZDB2_FFMPEG_Data_Th_Engine; overload;
+    function BuildOrOpen(FileName_: U_String; OnlyRead_, Encrypt_: Boolean): TZDB2_Th_Engine; overload;
     // if encrypt=true defualt password 'DTC40@ZSERVER'
-    function BuildOrOpen(FileName_: U_String; OnlyRead_, Encrypt_: Boolean; cfg: THashStringList): TZDB2_FFMPEG_Data_Th_Engine; overload;
-    function Begin_Custom_Build: TZDB2_FFMPEG_Data_Th_Engine;
-    function End_Custom_Build(Eng_: TZDB2_FFMPEG_Data_Th_Engine): Boolean;
-    procedure Extract_Video_Data_Pool(ThNum_: Integer);
+    function BuildOrOpen(FileName_: U_String; OnlyRead_, Encrypt_: Boolean; cfg: THashStringList): TZDB2_Th_Engine; overload;
+    function Begin_Custom_Build: TZDB2_Th_Engine;
+    function End_Custom_Build(Eng_: TZDB2_Th_Engine): Boolean;
+    procedure Extract_Video_Data_Pool(Full_Data_Load_: Boolean; ThNum_: Integer);
     function Add_Video_Data(
       Source, clip: U_String;
       PSF: Double; // per second frame
@@ -226,7 +242,29 @@ begin
   m64.WriteDouble(End_Time);
 end;
 
+procedure TZDB2_FFMPEG_Data_Head.Encode(m64: TMem64);
+begin
+  m64.WriteString(Source);
+  m64.WriteString(clip);
+  m64.WriteDouble(PSF);
+  m64.WriteInt64(Begin_Frame_ID);
+  m64.WriteInt64(End_Frame_ID);
+  m64.WriteDouble(Begin_Time);
+  m64.WriteDouble(End_Time);
+end;
+
 procedure TZDB2_FFMPEG_Data_Head.Decode(m64: TMS64);
+begin
+  Source := m64.ReadString;
+  clip := m64.ReadString;
+  PSF := m64.ReadDouble;
+  Begin_Frame_ID := m64.ReadInt64;
+  End_Frame_ID := m64.ReadInt64;
+  Begin_Time := m64.ReadDouble;
+  End_Time := m64.ReadDouble;
+end;
+
+procedure TZDB2_FFMPEG_Data_Head.Decode(m64: TMem64);
 begin
   Source := m64.ReadString;
   clip := m64.ReadString;
@@ -258,7 +296,7 @@ end;
 constructor TZDB2_FFMPEG_Data.Create;
 begin
   inherited Create;
-  Sequence_ID := 0;
+  FSequence_ID := 0;
   Owner_FFMPEG_Data_Marshal := nil;
   Head := TZDB2_FFMPEG_Data_Head.Create;
   FH264_Data_Position := 0;
@@ -269,6 +307,7 @@ begin
   if Owner_FFMPEG_Data_Marshal <> nil then
     begin
       Owner_FFMPEG_Data_Marshal.Critical.Lock;
+      Owner_FFMPEG_Data_Marshal.Sequence_ID_Pool.Delete(FSequence_ID);
       Owner_FFMPEG_Data_Marshal.Source_Analysis.IncValue(Head.Source, -1);
       Owner_FFMPEG_Data_Marshal.clip_Analysis.IncValue(Head.clip, -1);
       Owner_FFMPEG_Data_Marshal.Critical.UnLock;
@@ -301,6 +340,20 @@ begin
       Result.Position := 0;
     end;
   DisposeObject(tmp);
+end;
+
+procedure TZDB2_FFMPEG_Data.Encode_External_Header_Data(External_Header_Data: TMem64);
+begin
+  External_Header_Data.WriteInt64(FSequence_ID);
+  External_Header_Data.WriteInt64(FH264_Data_Position);
+  Head.Encode(External_Header_Data);
+end;
+
+procedure TZDB2_FFMPEG_Data.Decode_External_Header_Data(External_Header_Data: TMem64);
+begin
+  FSequence_ID := External_Header_Data.ReadInt64;
+  FH264_Data_Position := External_Header_Data.ReadInt64;
+  Head.Decode(External_Header_Data);
 end;
 
 class function TFFMPEG_Data_Analysis_Struct.Null_: TFFMPEG_Data_Analysis_Struct;
@@ -630,14 +683,99 @@ begin
       until not Next;
 end;
 
-constructor TZDB2_FFMPEG_Data_Th_Engine.Create(Owner_: TZDB2_Th_Engine_Marshal);
+procedure TZDB2_FFMPEG_Engine_Marshal__.Prepare_Flush_External_Header(Th_Engine_: TZDB2_Th_Engine; var Sequence_Table: TZDB2_BlockHandle; Flush_Instance_Pool: TZDB2_Th_Engine_Data_Instance_Pool; External_Header_Data_: TMem64);
+var
+  tmp: TMem64;
 begin
-  inherited Create(Owner_);
+  if Flush_Instance_Pool.Num <= 0 then
+      exit;
+
+  External_Header_Data_.Clear;
+  External_Header_Data_.WriteInt64(Flush_Instance_Pool.Num);
+  with Flush_Instance_Pool.Repeat_ do
+    repeat
+      External_Header_Data_.WriteInt32(Queue^.Data.ID);
+      tmp := TMem64.CustomCreate(1536);
+      TZDB2_FFMPEG_Data(Queue^.Data).Encode_External_Header_Data(tmp);
+      External_Header_Data_.WriteInt32(tmp.Size);
+      External_Header_Data_.WritePtr(tmp.Memory, tmp.Size);
+      DisposeObject(tmp);
+    until not Next;
 end;
 
-destructor TZDB2_FFMPEG_Data_Th_Engine.Destroy;
+procedure TZDB2_FFMPEG_Engine_Marshal__.Do_Extract_Th_Eng(ThSender: TCompute);
+var
+  Eng_: TZDB2_Th_Engine;
+  Error_Num: PInt64;
+  num_: Int64;
+  ID_: Integer;
+  siz_: Integer;
+  Inst_: TZDB2_FFMPEG_Data;
+  tmp: TMem64;
 begin
-  inherited Destroy;
+  Eng_ := ThSender.UserObject as TZDB2_Th_Engine;
+  Error_Num := ThSender.UserData;
+
+  Eng_.External_Header_Data.Position := 0;
+  num_ := Eng_.External_Header_Data.ReadInt64;
+
+  while num_ > 0 do
+    begin
+      ID_ := Eng_.External_Header_Data.ReadInt32;
+      Inst_ := TZDB2_FFMPEG_Data(Eng_.Th_Engine_ID_Data_Pool[ID_]);
+      if Inst_ = nil then
+        begin
+          AtomInc(Error_Num^);
+          break;
+        end;
+      try
+        siz_ := Eng_.External_Header_Data.ReadInt32;
+        tmp := TMem64.Create;
+        tmp.Mapping(Eng_.External_Header_Data.PosAsPtr, siz_);
+        Inst_.Decode_External_Header_Data(tmp);
+        DisposeObject(tmp);
+        Eng_.External_Header_Data.Position := Eng_.External_Header_Data.Position + siz_;
+      except
+        AtomInc(Error_Num^);
+        break;
+      end;
+      dec(num_);
+    end;
+end;
+
+procedure TZDB2_FFMPEG_Engine_Marshal__.Extract_External_Header(var Extract_Done: Boolean);
+var
+  Error_Num: Int64;
+
+  function Check_External_Header: NativeInt;
+  begin
+    { external-header optimize tech }
+    Result := 0;
+    if Engine_Pool.Num > 0 then
+      with Engine_Pool.Repeat_ do
+        repeat
+          if Queue^.Data.External_Header_Data.Size >= 8 then
+              Inc(Result);
+        until not Next;
+  end;
+
+var
+  Signal_: TBool_Signal_Array;
+begin
+  Extract_Done := False;
+  Error_Num := 0;
+  if Check_External_Header <> Engine_Pool.Num then
+      exit;
+  if Engine_Pool.Num > 0 then
+    begin
+      SetLength(Signal_, Engine_Pool.Num);
+      with Engine_Pool.Repeat_ do
+        repeat
+            TCompute.RunM(@Error_Num, Queue^.Data, {$IFDEF FPC}@{$ENDIF FPC}Do_Extract_Th_Eng, @Signal_[I__], nil);
+        until not Next;
+      Wait_All_Signal(Signal_, False);
+    end;
+  Extract_Done := Error_Num = 0;
 end;
 
 procedure TZDB2_FFMPEG_Data_Marshal.Do_Th_Data_Loaded(Sender: TZDB2_Th_Engine_Data; IO_: TMS64);
@@ -648,40 +786,56 @@ begin
   obj_.Owner_FFMPEG_Data_Marshal := Self;
 
   IO_.Position := 0;
-  obj_.Sequence_ID := IO_.ReadUInt64; // sequence id
+  obj_.FSequence_ID := IO_.ReadInt64; // sequence id
+  obj_.Head.Decode(IO_); // head info
+  obj_.FH264_Data_Position := IO_.Position; // data body
+end;
+
+procedure TZDB2_FFMPEG_Data_Marshal.Do_Th_Block_Loaded(Sender: TZDB2_Th_Engine_Data; IO_: TMem64);
+var
+  obj_: TZDB2_FFMPEG_Data;
+begin
+  obj_ := Sender as TZDB2_FFMPEG_Data;
+  obj_.Owner_FFMPEG_Data_Marshal := Self;
+
+  IO_.Position := 0;
+  obj_.FSequence_ID := IO_.ReadInt64; // sequence id
   obj_.Head.Decode(IO_); // head info
   obj_.FH264_Data_Position := IO_.Position; // data body
 end;
 
 function TZDB2_FFMPEG_Data_Marshal.Do_Sort_By_Sequence_ID(var L, R: TZDB2_Th_Engine_Data): Integer;
 begin
-  Result := CompareUInt64(TZDB2_FFMPEG_Data(L).Sequence_ID, TZDB2_FFMPEG_Data(R).Sequence_ID);
+  Result := CompareInt64(TZDB2_FFMPEG_Data(L).FSequence_ID, TZDB2_FFMPEG_Data(R).FSequence_ID);
 end;
 
 constructor TZDB2_FFMPEG_Data_Marshal.Create;
 begin
   inherited Create;
-  Current_Sequence_ID := 1;
+  FCurrent_Sequence_ID := 1;
   Update_Analysis_Data_Is_Busy := False;
   Critical := TCritical.Create;
-  ZDB2_Eng := TZDB2_Th_Engine_Marshal.Create(self);
+  ZDB2_Eng := TZDB2_FFMPEG_Engine_Marshal__.Create(Self);
   ZDB2_Eng.Current_Data_Class := TZDB2_FFMPEG_Data;
+  Sequence_ID_Pool := TZDB2_FFMPEG_Data_Sequence_ID_Pool.Create($FFFF, nil);
   Source_Analysis := TFFMPEG_Data_Analysis_Hash_Pool.Create($FFFF, TFFMPEG_Data_Analysis_Struct.Null_);
   clip_Analysis := TFFMPEG_Data_Analysis_Hash_Pool.Create(1024 * 1024, TFFMPEG_Data_Analysis_Struct.Null_);
 end;
 
 destructor TZDB2_FFMPEG_Data_Marshal.Destroy;
 begin
+  Sequence_ID_Pool.Clear;
   DisposeObject(ZDB2_Eng);
+  DisposeObject(Sequence_ID_Pool);
   DisposeObject(Source_Analysis);
   DisposeObject(clip_Analysis);
   DisposeObject(Critical);
   inherited Destroy;
 end;
 
-function TZDB2_FFMPEG_Data_Marshal.BuildMemory(): TZDB2_FFMPEG_Data_Th_Engine;
+function TZDB2_FFMPEG_Data_Marshal.BuildMemory(): TZDB2_Th_Engine;
 begin
-  Result := TZDB2_FFMPEG_Data_Th_Engine.Create(ZDB2_Eng);
+  Result := TZDB2_Th_Engine.Create(ZDB2_Eng);
   Result.Cache_Mode := smBigData;
   Result.Database_File := '';
   Result.OnlyRead := False;
@@ -689,9 +843,9 @@ begin
   Result.Build(ZDB2_Eng.Current_Data_Class);
 end;
 
-function TZDB2_FFMPEG_Data_Marshal.BuildOrOpen(FileName_: U_String; OnlyRead_, Encrypt_: Boolean): TZDB2_FFMPEG_Data_Th_Engine;
+function TZDB2_FFMPEG_Data_Marshal.BuildOrOpen(FileName_: U_String; OnlyRead_, Encrypt_: Boolean): TZDB2_Th_Engine;
 begin
-  Result := TZDB2_FFMPEG_Data_Th_Engine.Create(ZDB2_Eng);
+  Result := TZDB2_Th_Engine.Create(ZDB2_Eng);
   Result.Cache_Mode := smNormal;
   Result.Database_File := FileName_;
   Result.OnlyRead := OnlyRead_;
@@ -709,9 +863,9 @@ begin
     end;
 end;
 
-function TZDB2_FFMPEG_Data_Marshal.BuildOrOpen(FileName_: U_String; OnlyRead_, Encrypt_: Boolean; cfg: THashStringList): TZDB2_FFMPEG_Data_Th_Engine;
+function TZDB2_FFMPEG_Data_Marshal.BuildOrOpen(FileName_: U_String; OnlyRead_, Encrypt_: Boolean; cfg: THashStringList): TZDB2_Th_Engine;
 begin
-  Result := TZDB2_FFMPEG_Data_Th_Engine.Create(ZDB2_Eng);
+  Result := TZDB2_Th_Engine.Create(ZDB2_Eng);
   Result.Cache_Mode := smNormal;
   Result.Database_File := FileName_;
   Result.OnlyRead := OnlyRead_;
@@ -731,35 +885,46 @@ begin
     end;
 end;
 
-function TZDB2_FFMPEG_Data_Marshal.Begin_Custom_Build: TZDB2_FFMPEG_Data_Th_Engine;
+function TZDB2_FFMPEG_Data_Marshal.Begin_Custom_Build: TZDB2_Th_Engine;
 begin
-  Result := TZDB2_FFMPEG_Data_Th_Engine.Create(ZDB2_Eng);
+  Result := TZDB2_Th_Engine.Create(ZDB2_Eng);
 end;
 
-function TZDB2_FFMPEG_Data_Marshal.End_Custom_Build(Eng_: TZDB2_FFMPEG_Data_Th_Engine): Boolean;
+function TZDB2_FFMPEG_Data_Marshal.End_Custom_Build(Eng_: TZDB2_Th_Engine): Boolean;
 begin
   Eng_.Build(ZDB2_Eng.Current_Data_Class);
   Result := Eng_.Ready;
 end;
 
-procedure TZDB2_FFMPEG_Data_Marshal.Extract_Video_Data_Pool(ThNum_: Integer);
+procedure TZDB2_FFMPEG_Data_Marshal.Extract_Video_Data_Pool(Full_Data_Load_: Boolean; ThNum_: Integer);
 var
+  Extract_Done: Boolean;
   __repeat__: TFFMPEG_Data_Analysis_Hash_Pool_Decl.TRepeat___;
 begin
-  ZDB2_Eng.Parallel_Load_M(ThNum_, {$IFDEF FPC}@{$ENDIF FPC}Do_Th_Data_Loaded, nil);
+  Extract_Done := False;
+  ZDB2_Eng.Extract_External_Header(Extract_Done); { external-header optimize tech }
+  if not Extract_Done then
+    begin
+      if Full_Data_Load_ then
+          ZDB2_Eng.Parallel_Load_M(ThNum_, {$IFDEF FPC}@{$ENDIF FPC}Do_Th_Data_Loaded, nil)
+      else
+          ZDB2_Eng.Parallel_Block_Load_M(ThNum_, 0, 0, 2000, {$IFDEF FPC}@{$ENDIF FPC}Do_Th_Block_Loaded, nil);
+    end;
 
-  Current_Sequence_ID := 1;
+  FCurrent_Sequence_ID := 1;
+  Sequence_ID_Pool.Clear;
   if ZDB2_Eng.Data_Marshal.Num > 0 then
     begin
       Critical.Lock;
       // compute analysis
       with ZDB2_Eng.Data_Marshal.Repeat_ do
         repeat
+          Sequence_ID_Pool.Add(TZDB2_FFMPEG_Data(Queue^.Data).FSequence_ID, TZDB2_FFMPEG_Data(Queue^.Data), False);
           Source_Analysis.IncValue(TZDB2_FFMPEG_Data(Queue^.Data).Head.Source, 1, TZDB2_FFMPEG_Data(Queue^.Data).Head.Begin_Time, TZDB2_FFMPEG_Data(Queue^.Data).Head.End_Time, TZDB2_FFMPEG_Data(Queue^.Data).Size);
           clip_Analysis.IncValue(TZDB2_FFMPEG_Data(Queue^.Data).Head.clip, 1, TZDB2_FFMPEG_Data(Queue^.Data).Head.Begin_Time, TZDB2_FFMPEG_Data(Queue^.Data).Head.End_Time, TZDB2_FFMPEG_Data(Queue^.Data).Size);
         until not Next;
       ZDB2_Eng.Sort_M({$IFDEF FPC}@{$ENDIF FPC}Do_Sort_By_Sequence_ID);
-      Current_Sequence_ID := TZDB2_FFMPEG_Data(ZDB2_Eng.Data_Marshal.Last^.Data).Sequence_ID + 1;
+      FCurrent_Sequence_ID := TZDB2_FFMPEG_Data(ZDB2_Eng.Data_Marshal.Last^.Data).FSequence_ID + 1;
       Critical.UnLock;
 
       if Source_Analysis.Num > 0 then
@@ -774,7 +939,7 @@ begin
         end;
 
       DoStatus('finish compute analysis and rebuild sequence, total num:%d, classifier/clip:%d/%d, last sequence id:%d',
-        [ZDB2_Eng.Data_Marshal.Num, Source_Analysis.Num, clip_Analysis.Num, Current_Sequence_ID]);
+        [ZDB2_Eng.Data_Marshal.Num, Source_Analysis.Num, clip_Analysis.Num, FCurrent_Sequence_ID]);
     end;
 end;
 
@@ -792,8 +957,8 @@ begin
   if Result <> nil then
     begin
       // update sequence id
-      Result.Sequence_ID := Current_Sequence_ID;
-      Inc(Current_Sequence_ID);
+      Result.FSequence_ID := FCurrent_Sequence_ID;
+      Inc(FCurrent_Sequence_ID);
 
       // extract video info
       Result.Head.Source := Source;
@@ -806,7 +971,7 @@ begin
 
       // rebuild sequence memory
       tmp := TMS64.Create;
-      tmp.WriteUInt64(Result.Sequence_ID);
+      tmp.WriteInt64(Result.FSequence_ID);
       Result.Head.Encode(tmp);
       Result.FH264_Data_Position := tmp.Position; // update data postion
       tmp.WritePtr(body.Memory, body.Size);
@@ -815,6 +980,9 @@ begin
       // auto free
       if AutoFree_ then
           DisposeObject(body);
+
+      // update sequence-id pool
+      Sequence_ID_Pool.Add(Result.FSequence_ID, Result, False);
 
       // compute time analysis
       Source_Analysis.IncValue(Result.Head.Source, 1, Result.Head.Begin_Time, Result.Head.End_Time, Result.Size);
@@ -832,8 +1000,8 @@ begin
   if Result <> nil then
     begin
       // update sequence id
-      Result.Sequence_ID := Current_Sequence_ID;
-      Inc(Current_Sequence_ID);
+      Result.FSequence_ID := FCurrent_Sequence_ID;
+      Inc(FCurrent_Sequence_ID);
 
       // extract video info
       pack_.Position := 0;
@@ -842,13 +1010,16 @@ begin
 
       // rebuild sequence memory
       tmp := TMS64.Create;
-      tmp.WriteUInt64(Result.Sequence_ID);
+      tmp.WriteInt64(Result.FSequence_ID);
       tmp.WritePtr(pack_.Memory, pack_.Size);
       Result.Async_Save_And_Free_Data(tmp);
 
       // auto free
       if AutoFree_ then
           DisposeObject(pack_);
+
+      // update sequence-id pool
+      Sequence_ID_Pool.Add(Result.FSequence_ID, Result, False);
 
       // compute time analysis
       Source_Analysis.IncValue(Result.Head.Source, 1, Result.Head.Begin_Time, Result.Head.End_Time, Result.Size);
@@ -1081,4 +1252,3 @@ begin
 end;
 
 end.
-

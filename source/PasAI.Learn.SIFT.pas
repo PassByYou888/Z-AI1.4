@@ -110,7 +110,7 @@ type
     FViewer: TMPasAI_Raster;
 
     function isExtrema(const x, y: TLInt; const pyr_id, scale_id: TLInt): Boolean;
-    procedure BuildLocalExtrema(const pyr_id, scale_id: TLInt; const Transform: Boolean; v2List: TVec2List); overload;
+    procedure BuildLocalExtrema(const pyr_id, scale_id: TLInt; const Transform: Boolean; v2List: TV2L); overload;
     procedure BuildLocalExtrema(const pyr_id, scale_id: TLInt; ExtremaCoorList: TCore_List); overload;
 
     function KPIntegral(const dogIntegral: PGaussSpaceIntegral; const x, y, s: TLInt; var Offset, Delta: TLVec): Boolean;
@@ -128,15 +128,15 @@ type
     property width: TLInt read FHeight;
     property height: TLInt read FHeight;
 
-    procedure SetRegion(const Clip: TVec2List); overload;
+    procedure SetRegion(const Clip: TV2L); overload;
     procedure SetRegion(var mat: TLBMatrix); overload;
 
     procedure BuildPyramid;
 
-    function BuildAbsoluteExtrema: TVec2List;
+    function BuildAbsoluteExtrema: TV2L;
     function BuildPyramidExtrema(const FilterOri: Boolean): TPyramidCoorList;
 
-    function BuildViewer(const v2List: TVec2List; const radius: TGFloat; const COLOR: TPasAI_RasterColor): TMPasAI_Raster; overload;
+    function BuildViewer(const v2List: TV2L; const radius: TGFloat; const COLOR: TPasAI_RasterColor): TMPasAI_Raster; overload;
     function BuildViewer(const cList: TPyramidCoorList; const radius: TGFloat; const COLOR: TPasAI_RasterColor): TMPasAI_Raster; overload;
     class procedure BuildToViewer(const cList: TPyramidCoorList; const radius: TGFloat; const COLOR: TPasAI_RasterColor; const RasterViewer: TMPasAI_Raster); overload;
     class procedure BuildToViewer(const cList: TPyramidCoorList; const radius: TGFloat; const RasterViewer: TMPasAI_Raster); overload;
@@ -187,7 +187,7 @@ type
   public
     LinkRaster: TMPasAI_Raster;
     constructor CreateWithPyramids(Pyramids: TPyramids);
-    constructor CreateWithRasterClip(const raster: TMPasAI_Raster; const Clip: TVec2List); overload;
+    constructor CreateWithRasterClip(const raster: TMPasAI_Raster; const Clip: TV2L); overload;
     constructor CreateWithRasterClipMatrix(const raster: TMPasAI_Raster; var mat: TLBMatrix); overload;
     constructor CreateWithRaster(const raster: TMPasAI_Raster); overload;
     constructor CreateWithRasterFile(const fn: string); overload;
@@ -1567,7 +1567,7 @@ begin
   Result := True;
 end;
 
-procedure TPyramids.BuildLocalExtrema(const pyr_id, scale_id: TLInt; const Transform: Boolean; v2List: TVec2List);
+procedure TPyramids.BuildLocalExtrema(const pyr_id, scale_id: TLInt; const Transform: Boolean; v2List: TV2L);
 var
   w, h: TLInt;
 
@@ -2109,7 +2109,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TPyramids.SetRegion(const Clip: TVec2List);
+procedure TPyramids.SetRegion(const Clip: TV2L);
 {$IFDEF Parallel}
 {$IFDEF FPC}
   procedure Nested_ParallelFor(pass: TLInt);
@@ -2228,7 +2228,7 @@ begin
 {$ENDIF FPC}
 end;
 
-function TPyramids.BuildAbsoluteExtrema: TVec2List;
+function TPyramids.BuildAbsoluteExtrema: TV2L;
 var
   i, j: TLInt;
   v: TVec2;
@@ -2236,7 +2236,7 @@ var
 begin
   if length(Pyramids) = 0 then
       BuildPyramid;
-  Result := TVec2List.Create;
+  Result := TV2L.Create;
   for i := 0 to CNUMBER_OCTAVE - 1 do
     for j := 0 to CNUMBER_SCALE - 2 do
         BuildLocalExtrema(i, j, True, Result);
@@ -2374,7 +2374,7 @@ begin
   Result := PyramidCoordOutput;
 end;
 
-function TPyramids.BuildViewer(const v2List: TVec2List; const radius: TGFloat; const COLOR: TPasAI_RasterColor): TMPasAI_Raster;
+function TPyramids.BuildViewer(const v2List: TV2L; const radius: TGFloat; const COLOR: TPasAI_RasterColor): TMPasAI_Raster;
 var
   i: TLInt;
   L: TGFloat;
@@ -2674,7 +2674,7 @@ begin
   LinkRaster := nil;
 end;
 
-constructor TFeature.CreateWithRasterClip(const raster: TMPasAI_Raster; const Clip: TVec2List);
+constructor TFeature.CreateWithRasterClip(const raster: TMPasAI_Raster; const Clip: TV2L);
 var
   Pyramids: TPyramids;
 begin

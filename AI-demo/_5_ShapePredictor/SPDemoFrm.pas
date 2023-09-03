@@ -90,7 +90,7 @@ var
   arryV2: TArrayVec2;
   i: Integer;
   v2, t_v2: TVec2;
-  vl: TVec2List;
+  vl: TV2L;
   alpha: TGeoFloat;
   alpha_bound: Boolean;
 begin
@@ -144,7 +144,7 @@ begin
   // 在一些变脸app中，它们利用了sp技术覆盖画图
   for arryV2 in dest_sp do
     begin
-      vl := TVec2List.Create;
+      vl := TV2L.Create;
       for v2 in arryV2 do
         begin
           t_v2 := Vec2Transform(dest.BoundsRectV2, r, v2); // 变换点的坐标系，变换规律类似投影，但是比投影更简单，没有旋转变换，只有缩放的平移变换
@@ -274,7 +274,7 @@ var
   t_v2: TVec2;
   l_Ear, r_Ear, l_face, r_face: TVec2;
   mr: TMPasAI_Raster;
-  proj_s, proj_d: TVec2List;
+  proj_s, proj_d: TV2L;
   nose_t: TVec2;
 begin
   // 这里是演示使用重心坐标来对齐投影
@@ -295,7 +295,7 @@ begin
       mr.SetSize(400, 300, PasAI_RasterColorF(0, 0, 0, 1));
 
       // 投影发射坐标系
-      proj_s := TVec2List.Create;
+      proj_s := TV2L.Create;
       proj_s.Add(l_Ear);
       proj_s.Add(r_Ear);
       proj_s.Add(r_face);
@@ -304,7 +304,7 @@ begin
       proj_s.RotateAngle(proj_s.BoundCentre, -Vec2Angle(r_face, l_face));
 
       // 投影目标坐标系
-      proj_d := TVec2List.Create;
+      proj_d := TV2L.Create;
       proj_d.Add(Vec2(0, 0));
       proj_d.Add(Vec2(mr.width, 0));
       proj_d.Add(Vec2(mr.width, mr.height));

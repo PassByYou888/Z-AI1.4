@@ -3,17 +3,15 @@ object _129_ZDB2_Thread_App_DemoForm: T_129_ZDB2_Thread_App_DemoForm
   Top = 0
   BorderStyle = bsDialog
   Caption = 'ZDB2 Thread App Demo, create by.qq600585'
-  ClientHeight = 501
-  ClientWidth = 565
+  ClientHeight = 500
+  ClientWidth = 561
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  OldCreateOrder = False
   Position = poScreenCenter
-  PixelsPerInch = 96
   TextHeight = 13
   object Data_Num_Label: TLabel
     Left = 8
@@ -66,8 +64,8 @@ object _129_ZDB2_Thread_App_DemoForm: T_129_ZDB2_Thread_App_DemoForm
   end
   object Memo: TMemo
     Left = 0
-    Top = 320
-    Width = 565
+    Top = 319
+    Width = 561
     Height = 181
     Align = alBottom
     Lines.Strings = (

@@ -10,7 +10,7 @@
         <IsPartOfProject Value="True"/>
         <IsVisibleTab Value="True"/>
         <TopLine Value="224"/>
-        <CursorPos X="63" Y="237"/>
+        <CursorPos X="45" Y="238"/>
         <UsageCount Value="20"/>
         <Loaded Value="True"/>
       </Unit>
@@ -1773,9 +1773,7 @@
         <Filename Value="..\source\PasAI.Learn.AudioPrint.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
+        <CursorPos X="64" Y="25"/>
         <UsageCount Value="20"/>
       </Unit>
       <Unit>
@@ -3013,7 +3011,7 @@
         <UsageCount Value="20"/>
       </Unit>
     </Units>
-    <JumpHistory HistoryIndex="12">
+    <JumpHistory HistoryIndex="14">
       <Position>
         <Filename Value="fpc_compiler_test.lpr"/>
         <Caret Line="61" TopLine="58"/>
@@ -3064,6 +3062,14 @@
       <Position>
         <Filename Value="fpc_compiler_test.lpr"/>
         <Caret Line="250" Column="58" TopLine="224"/>
+      </Position>
+      <Position>
+        <Filename Value="fpc_compiler_test.lpr"/>
+        <Caret Line="248" Column="64" TopLine="224"/>
+      </Position>
+      <Position>
+        <Filename Value="fpc_compiler_test.lpr"/>
+        <Caret Line="244" Column="54" TopLine="224"/>
       </Position>
     </JumpHistory>
     <RunParams>

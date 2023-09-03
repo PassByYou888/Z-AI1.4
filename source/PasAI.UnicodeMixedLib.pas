@@ -17,8 +17,8 @@ uses
 {$IFDEF MSWINDOWS} Windows, {$ENDIF MSWINDOWS}
   System.IOUtils,
 {$ENDIF FPC}
-  SysUtils, Types, Math, Variants, PasAI.Core,
-  PasAI.PascalStrings, PasAI.UPascalStrings, PasAI.ListEngine;
+  SysUtils, Types, Math, Variants,
+  PasAI.Core, PasAI.PascalStrings, PasAI.UPascalStrings, PasAI.ListEngine;
 
 const
   C_Max_UInt32 = $FFFFFFFF;
@@ -40,7 +40,7 @@ const
   C_MD5_Size = 16;
 
   C_PrepareReadCacheSize = 512;
-  C_MaxBufferFragmentSize = $F000;
+  C_MaxBufferFragmentSize = $FFFF * 10;
 
   C_Flush_And_Seek_Error = -912;
   C_StringError = -911;
@@ -68,9 +68,9 @@ type
 
   TReliableFileStream = class(TCore_Stream)
   protected
-    SourceIO, BackupFileIO: TCore_FileStream;
+    Source_IO, Backup_IO: TCore_FileStream;
     FActivted: Boolean;
-    FFileName, FBackupFileName: SystemString;
+    FFileName, Backup_FileName: SystemString;
 
     procedure InitIO;
     procedure FreeIO;
@@ -81,13 +81,13 @@ type
     constructor Create(const FileName_: SystemString; IsNew_, IsWrite_: Boolean);
     destructor Destroy; override;
 
+    property FileName: SystemString read FFileName;
+    property BackupFileName: SystemString read Backup_FileName;
+    property Activted: Boolean read FActivted;
+
     function Write(const buffer; Count: longint): longint; override;
     function Read(var buffer; Count: longint): longint; override;
     function Seek(const Offset: Int64; origin: TSeekOrigin): Int64; override;
-
-    property FileName: SystemString read FFileName;
-    property BackupFileName: SystemString read FBackupFileName;
-    property Activted: Boolean read FActivted;
   end;
 
   PIOHnd = ^TIOHnd;
@@ -130,11 +130,15 @@ type
   TListPascalString_Helper_ = class helper for TListPascalString
   public
     procedure FillToArry(var Output_: U_StringArray);
+    procedure InputArray(arry: U_StringArray);
+    procedure Add_Arry(arry: U_StringArray);
   end;
 
   TStringBigList_Helper_ = class helper for TStringBigList
   public
+    procedure FillToArry(var Output_: U_StringArray);
     procedure InputArray(arry: U_StringArray);
+    procedure Add_Arry(arry: U_StringArray);
   end;
 
 function umlBytesOf(const s: TPascalString): TBytes;
@@ -249,15 +253,15 @@ function umlFindFirstDir(const DirName: TPascalString; var SR: TSR): Boolean;
 function umlFindNextDir(var SR: TSR): Boolean;
 procedure umlFindClose(var SR: TSR);
 
-function umlGetFileList(const FullPath: TPascalString; AsLst: TCore_Strings): Integer; overload;
-function umlGetDirList(const FullPath: TPascalString; AsLst: TCore_Strings): Integer; overload;
-function umlGetFileList(const FullPath: TPascalString; AsLst: TPascalStringList): Integer; overload;
-function umlGetDirList(const FullPath: TPascalString; AsLst: TPascalStringList): Integer; overload;
+function uml_Get_File_To_List(const FullPath: TPascalString; AsLst: TCore_Strings): Integer; overload;
+function uml_Get_Dir_To_List(const FullPath: TPascalString; AsLst: TCore_Strings): Integer; overload;
+function uml_Get_File_To_List(const FullPath: TPascalString; AsLst: TPascalStringList): Integer; overload;
+function uml_Get_Dir_To_List(const FullPath: TPascalString; AsLst: TPascalStringList): Integer; overload;
 
-function umlGetFileListWithFullPath(const FullPath: TPascalString): U_StringArray;
-function umlGetDirListWithFullPath(const FullPath: TPascalString): U_StringArray;
-function umlGetFileListPath(const FullPath: TPascalString): U_StringArray;
-function umlGetDirListPath(const FullPath: TPascalString): U_StringArray;
+function umlGet_File_Full_Array(const FullPath: TPascalString): U_StringArray;
+function umlGet_Path_Full_Array(const FullPath: TPascalString): U_StringArray;
+function umlGet_File_Array(const FullPath: TPascalString): U_StringArray;
+function umlGet_Path_Array(const FullPath: TPascalString): U_StringArray;
 
 function umlFixedPath(s: TPascalString): TPascalString;
 function umlCombinePath(const s1, s2: TPascalString): TPascalString;
@@ -438,7 +442,7 @@ function umlMatchFileInfo(const exp_, sour_, dest_: TPascalString): Boolean;
 
 function umlGetDateTimeStr(NowDateTime: TDateTime): TPascalString;
 function umlDecodeTimeToStr(NowDateTime: TDateTime): TPascalString;
-function umlMakeRanName: TPascalString;
+function umlGenerate_Random_Name: TPascalString;
 function umlDecodeDateTimeToInt64(NowDateTime: TDateTime): Int64;
 
 type
@@ -577,8 +581,6 @@ function umlDivisionBase64Text(const buffer: TPascalString; width: Integer; Divi
 function umlTestBase64(const text: TPascalString): Boolean;
 
 type
-  PMD5 = ^TMD5;
-  TMD5 = array [0 .. 15] of Byte;
   TMD5_Pool = {$IFDEF FPC}specialize {$ENDIF FPC} TGenericsList<TMD5>;
   TMD5_Big_Pool = {$IFDEF FPC}specialize {$ENDIF FPC} TPasAI_Raster_BL<TMD5>;
   TArrayMD5 = array of TMD5;
@@ -595,13 +597,13 @@ type
   end;
 
 const
-  Null_MD5: TMD5 = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  NULL_MD5: TMD5 = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
   Zero_MD5: TMD5 = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  NullMD5: TMD5 = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  NULLMD5: TMD5 = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
   ZeroMD5: TMD5 = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  umlNullMD5: TMD5 = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  umlNULLMD5: TMD5 = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
   umlZeroMD5: TMD5 = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  Null_Buff_MD5: TMD5 = (212, 29, 140, 217, 143, 0, 178, 4, 233, 128, 9, 152, 236, 248, 66, 126);
+  NULL_Buff_MD5: TMD5 = (212, 29, 140, 217, 143, 0, 178, 4, 233, 128, 9, 152, 236, 248, 66, 126);
 
 function umlStrIsMD5(hex: TPascalString): Boolean;
 function umlStrToMD5(hex: TPascalString): TMD5;
@@ -637,7 +639,6 @@ function umlFileMD5(FileName: TPascalString): TMD5; overload;
 procedure Do_ThCacheFileMD5(ThSender: TCompute);
 procedure umlCacheFileMD5(FileName: U_String);
 procedure umlCacheFileMD5FromDirectory(Directory_, Filter_: U_String);
-
 
 {$REGION 'crc16define'}
 
@@ -789,7 +790,7 @@ uses
 {$IF Defined(WIN32) or Defined(WIN64)}
   PasAI.MD5,
 {$ENDIF}
-  PasAI.Cipher, PasAI.Status, PasAI.MemoryStream;
+  PasAI.Cipher, PasAI.Status, PasAI.MemoryStream, PasAI.FragmentBuffer;
 
 procedure TReliableFileStream.InitIO;
 begin
@@ -797,16 +798,16 @@ begin
       exit;
 
   DoStatus(PFormat('Reliable IO Open : %s', [umlGetFileName(FileName).text]));
-  DoStatus(PFormat('Create Backup %s size: %s', [umlGetFileName(FileName).text, umlSizeToStr(SourceIO.Size).text]));
+  DoStatus(PFormat('Create Backup %s size: %s', [umlGetFileName(FileName).text, umlSizeToStr(Source_IO.Size).text]));
 
-  BackupFileIO := TCore_FileStream.Create(FBackupFileName, fmCreate);
-  BackupFileIO.Size := SourceIO.Size;
-  SourceIO.Position := 0;
-  BackupFileIO.Position := 0;
-  BackupFileIO.CopyFrom(SourceIO, SourceIO.Size);
-  BackupFileIO.Position := 0;
-  DisposeObject(SourceIO);
-  SourceIO := nil;
+  Backup_IO := TCore_FileStream.Create(Backup_FileName, fmCreate);
+  Backup_IO.Size := Source_IO.Size;
+  Source_IO.Position := 0;
+  Backup_IO.Position := 0;
+  Backup_IO.CopyFrom(Source_IO, Source_IO.Size);
+  Backup_IO.Position := 0;
+  DisposeObject(Source_IO);
+  Source_IO := nil;
 end;
 
 procedure TReliableFileStream.FreeIO;
@@ -814,11 +815,11 @@ begin
   if not FActivted then
       exit;
 
-  DisposeObject(BackupFileIO);
-  BackupFileIO := nil;
+  DisposeObject(Backup_IO);
+  Backup_IO := nil;
   try
     umlDeleteFile(FFileName);
-    umlRenameFile(FBackupFileName, FileName);
+    umlRenameFile(Backup_FileName, FileName);
   except
   end;
   DoStatus(PFormat('Reliable IO Close : %s', [umlGetFileName(FileName).text]));
@@ -826,7 +827,7 @@ end;
 
 procedure TReliableFileStream.SetSize(const NewSize: Int64);
 begin
-  SourceIO.Size := NewSize;
+  Source_IO.Size := NewSize;
 end;
 
 procedure TReliableFileStream.SetSize(NewSize: longint);
@@ -850,18 +851,18 @@ begin
 {$ELSE ZDB_BACKUP}
   FActivted := False;
 {$ENDIF ZDB_BACKUP}
-  SourceIO := TCore_FileStream.Create(FileName_, m);
+  Source_IO := TCore_FileStream.Create(FileName_, m);
 
-  BackupFileIO := nil;
+  Backup_IO := nil;
   FFileName := FileName_;
-  FBackupFileName := FileName_ + '.save';
-  umlDeleteFile(FBackupFileName);
+  Backup_FileName := FileName_ + '.save';
+  umlDeleteFile(Backup_FileName);
   InitIO;
 end;
 
 destructor TReliableFileStream.Destroy;
 begin
-  DisposeObject(SourceIO);
+  DisposeObject(Source_IO);
   FreeIO;
   inherited Destroy;
 end;
@@ -870,11 +871,11 @@ function TReliableFileStream.Write(const buffer; Count: longint): longint;
 begin
   if FActivted then
     begin
-      Result := BackupFileIO.Write(buffer, Count);
+      Result := Backup_IO.Write(buffer, Count);
     end
   else
     begin
-      Result := SourceIO.Write(buffer, Count);
+      Result := Source_IO.Write(buffer, Count);
     end;
 end;
 
@@ -882,11 +883,11 @@ function TReliableFileStream.Read(var buffer; Count: longint): longint;
 begin
   if FActivted then
     begin
-      Result := BackupFileIO.Read(buffer, Count);
+      Result := Backup_IO.Read(buffer, Count);
     end
   else
     begin
-      Result := SourceIO.Read(buffer, Count);
+      Result := Source_IO.Read(buffer, Count);
     end;
 end;
 
@@ -894,11 +895,11 @@ function TReliableFileStream.Seek(const Offset: Int64; origin: TSeekOrigin): Int
 begin
   if FActivted then
     begin
-      Result := BackupFileIO.Seek(Offset, origin);
+      Result := Backup_IO.Seek(Offset, origin);
     end
   else
     begin
-      Result := SourceIO.Seek(Offset, origin);
+      Result := Source_IO.Seek(Offset, origin);
     end;
 end;
 
@@ -955,7 +956,41 @@ begin
       Output_[i] := Items[i];
 end;
 
+procedure TListPascalString_Helper_.InputArray(arry: U_StringArray);
+var
+  i: Integer;
+begin
+  for i := low(arry) to high(arry) do
+      add(arry[i]);
+end;
+
+procedure TListPascalString_Helper_.Add_Arry(arry: U_StringArray);
+var
+  i: Integer;
+begin
+  for i := low(arry) to high(arry) do
+      add(arry[i]);
+end;
+
+procedure TStringBigList_Helper_.FillToArry(var Output_: U_StringArray);
+begin
+  SetLength(Output_, Num);
+  if Num > 0 then
+    with repeat_ do
+      repeat
+          Output_[I__] := Queue^.Data;
+      until not Next;
+end;
+
 procedure TStringBigList_Helper_.InputArray(arry: U_StringArray);
+var
+  i: Integer;
+begin
+  for i := low(arry) to high(arry) do
+      add(arry[i]);
+end;
+
+procedure TStringBigList_Helper_.Add_Arry(arry: U_StringArray);
 var
   i: Integer;
 begin
@@ -1915,7 +1950,7 @@ begin
   FindClose(SR);
 end;
 
-function umlGetFileList(const FullPath: TPascalString; AsLst: TCore_Strings): Integer;
+function uml_Get_File_To_List(const FullPath: TPascalString; AsLst: TCore_Strings): Integer;
 var
   _SR: TSR;
 begin
@@ -1930,7 +1965,7 @@ begin
   umlFindClose(_SR);
 end;
 
-function umlGetDirList(const FullPath: TPascalString; AsLst: TCore_Strings): Integer;
+function uml_Get_Dir_To_List(const FullPath: TPascalString; AsLst: TCore_Strings): Integer;
 var
   _SR: TSR;
 begin
@@ -1945,7 +1980,7 @@ begin
   umlFindClose(_SR);
 end;
 
-function umlGetFileList(const FullPath: TPascalString; AsLst: TPascalStringList): Integer;
+function uml_Get_File_To_List(const FullPath: TPascalString; AsLst: TPascalStringList): Integer;
 var
   _SR: TSR;
 begin
@@ -1960,7 +1995,7 @@ begin
   umlFindClose(_SR);
 end;
 
-function umlGetDirList(const FullPath: TPascalString; AsLst: TPascalStringList): Integer;
+function uml_Get_Dir_To_List(const FullPath: TPascalString; AsLst: TPascalStringList): Integer;
 var
   _SR: TSR;
 begin
@@ -1975,7 +2010,7 @@ begin
   umlFindClose(_SR);
 end;
 
-function umlGetFileListWithFullPath(const FullPath: TPascalString): U_StringArray;
+function umlGet_File_Full_Array(const FullPath: TPascalString): U_StringArray;
 var
   ph: TPascalString;
   L: TPascalStringList;
@@ -1983,14 +2018,14 @@ var
 begin
   ph := FullPath;
   L := TPascalStringList.Create;
-  umlGetFileList(FullPath, L);
+  uml_Get_File_To_List(FullPath, L);
   SetLength(Result, L.Count);
   for i := 0 to L.Count - 1 do
       Result[i] := umlCombineFileName(ph, L[i]).text;
   DisposeObject(L);
 end;
 
-function umlGetDirListWithFullPath(const FullPath: TPascalString): U_StringArray;
+function umlGet_Path_Full_Array(const FullPath: TPascalString): U_StringArray;
 var
   ph: TPascalString;
   L: TPascalStringList;
@@ -1998,14 +2033,14 @@ var
 begin
   ph := FullPath;
   L := TPascalStringList.Create;
-  umlGetDirList(FullPath, L);
+  uml_Get_Dir_To_List(FullPath, L);
   SetLength(Result, L.Count);
   for i := 0 to L.Count - 1 do
       Result[i] := umlCombinePath(ph, L[i]).text;
   DisposeObject(L);
 end;
 
-function umlGetFileListPath(const FullPath: TPascalString): U_StringArray;
+function umlGet_File_Array(const FullPath: TPascalString): U_StringArray;
 var
   ph: TPascalString;
   L: TPascalStringList;
@@ -2013,14 +2048,14 @@ var
 begin
   ph := FullPath;
   L := TPascalStringList.Create;
-  umlGetFileList(FullPath, L);
+  uml_Get_File_To_List(FullPath, L);
   SetLength(Result, L.Count);
   for i := 0 to L.Count - 1 do
       Result[i] := L[i];
   DisposeObject(L);
 end;
 
-function umlGetDirListPath(const FullPath: TPascalString): U_StringArray;
+function umlGet_Path_Array(const FullPath: TPascalString): U_StringArray;
 var
   ph: TPascalString;
   L: TPascalStringList;
@@ -2028,7 +2063,7 @@ var
 begin
   ph := FullPath;
   L := TPascalStringList.Create;
-  umlGetDirList(FullPath, L);
+  uml_Get_Dir_To_List(FullPath, L);
   SetLength(Result, L.Count);
   for i := 0 to L.Count - 1 do
       Result[i] := L[i];
@@ -2585,6 +2620,8 @@ begin
 
   umlFileFlushWriteCache(IOHnd);
   umlResetPrepareRead(IOHnd);
+  if IOHnd.Handle is TSafe_Flush_Stream then
+      TSafe_Flush_Stream(IOHnd.Handle).Flush;
   IOHnd.ChangeFromWrite := False;
 
   Result := True;
@@ -4730,13 +4767,14 @@ begin
     IntToHex(Sec, 2) + IntToHex(MSec, 3);
 end;
 
-function umlMakeRanName: TPascalString;
+function umlGenerate_Random_Name: TPascalString;
 type
   TDecode_Data_ = packed record
     Year, Month, Day: Word;
     Hour, min_, Sec, MSec: Word;
     i64: Int64;
     i32: Integer;
+    MT_ID: Cardinal;
   end;
 var
   d: TDateTime;
@@ -4749,6 +4787,7 @@ begin
       DecodeTime(d, Hour, min_, Sec, MSec);
       i64 := TMT19937.Rand64;
       i32 := TMT19937.Rand32;
+      MT_ID := MainInstance;
     end;
   Result := umlMD5String(@R, SizeOf(TDecode_Data_));
 end;
@@ -6193,7 +6232,7 @@ begin
 
       Result.Append(buffer[i]);
       inc(n);
-      if n = width then
+      if n >= width - 1 then
         begin
           if DivisionAsPascalString then
               Result.Append(#39 + '+' + #13#10)
@@ -6202,7 +6241,7 @@ begin
           n := 0;
         end;
     end;
-  if DivisionAsPascalString then
+  if DivisionAsPascalString and (n > 0) then
       Result.Append(#39);
 end;
 
@@ -6223,7 +6262,7 @@ end;
 
 constructor TMD5_Pair_Pool.Create(HashSize_: Integer);
 begin
-  inherited Create(HashSize_, NullMD5);
+  inherited Create(HashSize_, NULLMD5);
   IsChanged := False;
 end;
 
@@ -6248,7 +6287,7 @@ end;
 
 procedure TMD5_Pair_Pool.SaveToStream(stream: TCore_Stream);
 begin
-  with Repeat_ do
+  with repeat_ do
     repeat
       StreamWriteMD5(stream, Queue^.Data^.Data.Primary);
       StreamWriteMD5(stream, Queue^.Data^.Data.Second);
@@ -6522,7 +6561,7 @@ begin
       if stream.Read(DeltaBuf^, bufSiz) <> bufSiz then
         begin
           FreeMemory(DeltaBuf);
-          exit(NullMD5);
+          exit(NULLMD5);
         end;
       p := DeltaBuf;
     end
@@ -6538,7 +6577,7 @@ begin
             if stream.Read(DeltaBuf^, Rest) <> Rest then
               begin
                 FreeMemory(DeltaBuf);
-                exit(NullMD5);
+                exit(NULLMD5);
               end;
 
             p := DeltaBuf;
@@ -6576,7 +6615,7 @@ function umlStreamMD5(stream: TCore_Stream): TMD5;
 begin
   if stream.Size <= 0 then
     begin
-      Result := NullMD5;
+      Result := NULLMD5;
       exit;
     end;
   stream.Position := 0;
@@ -6614,7 +6653,7 @@ begin
   try
       fs := TCore_FileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
   except
-    Result := NullMD5;
+    Result := NULLMD5;
     exit;
   end;
   try
@@ -6630,7 +6669,7 @@ var
 begin
   if not umlFileExists(FileName) then
     begin
-      Result := NullMD5;
+      Result := NULLMD5;
       exit;
     end;
 
@@ -6643,7 +6682,7 @@ begin
   try
       fs := TCore_FileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
   except
-    Result := NullMD5;
+    Result := NULLMD5;
     exit;
   end;
   try
@@ -6757,12 +6796,12 @@ end;
 
 function umlIsNullMD5(m: TMD5): Boolean;
 begin
-  Result := umlCompareMD5(m, NullMD5);
+  Result := umlCompareMD5(m, NULLMD5);
 end;
 
 function umlWasNullMD5(m: TMD5): Boolean;
 begin
-  Result := umlCompareMD5(m, NullMD5);
+  Result := umlCompareMD5(m, NULLMD5);
 end;
 
 type
@@ -6805,7 +6844,7 @@ begin
       Critical.Lock;
       FHash.Delete(FileName);
       Critical.UnLock;
-      Result := NullMD5;
+      Result := NULLMD5;
       exit;
     end;
 
@@ -6821,7 +6860,7 @@ begin
       try
           p^.md5 := umlFileMD5___(FileName);
       except
-          p^.md5 := Null_Buff_MD5;
+          p^.md5 := NULL_Buff_MD5;
       end;
       FHash.add(FileName, p, False);
       Result := p^.md5;
@@ -6835,7 +6874,7 @@ begin
           try
               p^.md5 := umlFileMD5___(FileName);
           except
-              p^.md5 := Null_Buff_MD5;
+              p^.md5 := NULL_Buff_MD5;
           end;
         end;
       Result := p^.md5;
@@ -6907,7 +6946,7 @@ var
 begin
   p := ThSender.UserData;
   try
-    arry := umlGetFileListWithFullPath(p^.Directory_);
+    arry := umlGet_File_Full_Array(p^.Directory_);
     for n in arry do
       begin
         if umlMultipleMatch(p^.Filter_, umlGetFileName(n)) then

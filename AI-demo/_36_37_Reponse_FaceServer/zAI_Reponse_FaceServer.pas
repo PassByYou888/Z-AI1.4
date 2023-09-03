@@ -30,7 +30,7 @@ type
     procedure Kill;
   end;
 
-  TFaceIOSpecial = class(TPeerIOUserSpecial)
+  TFaceIOSpecial = class(TPeer_IO_User_Special)
   public
     Face_Stream: TMS64;
     constructor Create(AOwner: TPeerIO); override;

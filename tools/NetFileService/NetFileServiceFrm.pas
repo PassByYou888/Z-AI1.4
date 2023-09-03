@@ -79,7 +79,7 @@ var
   tmp: TDFE;
 begin
   filter := InData.Reader.ReadString;
-  arry := umlGetFileListWithFullPath(FDoubleTunnel.FileReceiveDirectory);
+  arry := umlGet_File_Full_Array(FDoubleTunnel.FileReceiveDirectory);
 
   for n in arry do
     if umlMultipleMatch(filter, umlGetFileName(n)) then

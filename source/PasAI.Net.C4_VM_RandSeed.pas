@@ -15,6 +15,7 @@ uses
   PasAI.Geometry2D, PasAI.DFE, PasAI.Json, PasAI.Expression,
   PasAI.Notify, PasAI.Cipher, PasAI.MemoryStream,
   PasAI.ZDB2, PasAI.HashList.Templet,
+  PasAI.FragmentBuffer, // solve for discontinuous space
   PasAI.Net, PasAI.Net.PhysicsIO, PasAI.Net.DoubleTunnelIO.NoAuth, PasAI.Net.C4, PasAI.Net.C4.VM;
 
 type

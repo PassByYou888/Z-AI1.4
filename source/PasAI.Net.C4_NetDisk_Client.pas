@@ -14,6 +14,7 @@ uses
   PasAI.Core, PasAI.PascalStrings, PasAI.UPascalStrings, PasAI.Status, PasAI.UnicodeMixedLib, PasAI.ListEngine,
   PasAI.Geometry2D, PasAI.DFE, PasAI.Json, PasAI.Expression,
   PasAI.Notify, PasAI.Cipher, PasAI.MemoryStream,
+  PasAI.FragmentBuffer, // solve for discontinuous space
   PasAI.HashList.Templet,
   PasAI.IOThread, PasAI.ZDB2, PasAI.ZDB2.Thread.Queue, PasAI.ZDB2.Thread, PasAI.ZDB2.Thread.Pair_MD5_Stream,
   PasAI.Net, PasAI.Net.PhysicsIO, PasAI.Net.DoubleTunnelIO.NoAuth,

@@ -14,6 +14,7 @@ uses
   PasAI.Core, PasAI.PascalStrings, PasAI.UPascalStrings, PasAI.Status, PasAI.UnicodeMixedLib, PasAI.ListEngine,
   PasAI.Geometry2D, PasAI.DFE, PasAI.Json, PasAI.Expression,
   PasAI.Notify, PasAI.Cipher, PasAI.MemoryStream,
+  PasAI.FragmentBuffer, // solve for discontinuous space
   PasAI.ZDB2, PasAI.ZDB2.HS, PasAI.HashList.Templet,
   PasAI.Net, PasAI.Net.PhysicsIO, PasAI.Net.DoubleTunnelIO.NoAuth, PasAI.Net.C4;
 
@@ -31,7 +32,7 @@ type
   TLog_DB_Pool = {$IFDEF FPC}specialize {$ENDIF FPC}TGeneric_String_Object_Hash<TC40_Log_DB_ZDB2_HashString>;
   TLog_DB_List = {$IFDEF FPC}specialize {$ENDIF FPC}TPasAI_Raster_BL<TC40_Log_DB_ZDB2_HashString>;
 
-  TC40_Log_DB_Service_RecvTunnel_NoAuth = class(TPeerClientUserDefineForRecvTunnel_NoAuth)
+  TC40_Log_DB_Service_RecvTunnel_NoAuth = class(TService_RecvTunnel_UserDefine_NoAuth)
   public
     Log_DB_Service: TC40_Log_DB_Service;
     Sync_Log: Boolean;
@@ -41,8 +42,8 @@ type
 
   TC40_Log_DB_Service = class(TC40_Base_NoAuth_Service)
   protected
-    procedure DoLinkSuccess_Event(sender: TDTService_NoAuth; UserDefineIO: TPeerClientUserDefineForRecvTunnel_NoAuth); override;
-    procedure DoUserOut_Event(sender: TDTService_NoAuth; UserDefineIO: TPeerClientUserDefineForRecvTunnel_NoAuth); override;
+    procedure DoLinkSuccess_Event(sender: TDTService_NoAuth; UserDefineIO: TService_RecvTunnel_UserDefine_NoAuth); override;
+    procedure DoUserOut_Event(sender: TDTService_NoAuth; UserDefineIO: TService_RecvTunnel_UserDefine_NoAuth); override;
   private
     procedure cmd_PostLog(sender: TPeerIO; InData: TDFE);
     procedure cmd_QueryLog(sender: TPeerIO; InData, OutData: TDFE);
@@ -263,7 +264,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TC40_Log_DB_Service.DoLinkSuccess_Event(sender: TDTService_NoAuth; UserDefineIO: TPeerClientUserDefineForRecvTunnel_NoAuth);
+procedure TC40_Log_DB_Service.DoLinkSuccess_Event(sender: TDTService_NoAuth; UserDefineIO: TService_RecvTunnel_UserDefine_NoAuth);
 var
   IO_Def: TC40_Log_DB_Service_RecvTunnel_NoAuth;
 begin
@@ -272,7 +273,7 @@ begin
   IO_Def.Log_DB_Service := self;
 end;
 
-procedure TC40_Log_DB_Service.DoUserOut_Event(sender: TDTService_NoAuth; UserDefineIO: TPeerClientUserDefineForRecvTunnel_NoAuth);
+procedure TC40_Log_DB_Service.DoUserOut_Event(sender: TDTService_NoAuth; UserDefineIO: TService_RecvTunnel_UserDefine_NoAuth);
 begin
   inherited DoUserOut_Event(sender, UserDefineIO);
 end;
@@ -420,7 +421,7 @@ var
   fArry: U_StringArray;
   fn: U_SystemString;
 begin
-  fArry := umlGetFileListWithFullPath(C40_DB_Directory);
+  fArry := umlGet_File_Full_Array(C40_DB_Directory);
   for fn in fArry do
     if umlMultipleMatch(True, '*.Log_ZDB2', fn) then
         OutData.WriteString(umlChangeFileExt(umlGetFileName(fn), ''));
@@ -551,7 +552,7 @@ end;
 function TC40_Log_DB_Service.GetDB(const LogDB: SystemString): TC40_Log_DB_ZDB2_HashString;
 var
   fn: U_String;
-  fs: TCore_FileStream;
+  fs: TCore_Stream;
   LogDB_: U_String;
 begin
   LogDB_ := umlConverStrToFileName(LogDB);
@@ -562,9 +563,21 @@ begin
       fn := umlCombineFileName(C40_DB_Directory, LogDB_.Text + '.Log_ZDB2');
       try
         if EStrToBool(ParamList.GetDefaultValue('ForeverSave', 'True'), True) and umlFileExists(fn) then
-            fs := TCore_FileStream.Create(fn, fmOpenReadWrite)
+          begin
+{$IFDEF C4_Safe_Flush}
+            fs := TSafe_Flush_Stream.Create(fn, False, True);
+{$ELSE C4_Safe_Flush}
+            fs := TCore_FileStream.Create(fn, fmOpenReadWrite);
+{$ENDIF C4_Safe_Flush}
+          end
         else
+          begin
+{$IFDEF C4_Safe_Flush}
+            fs := TSafe_Flush_Stream.Create(fn, True, True);
+{$ELSE C4_Safe_Flush}
             fs := TCore_FileStream.Create(fn, fmCreate);
+{$ENDIF C4_Safe_Flush}
+          end;
         Result := TC40_Log_DB_ZDB2_HashString.Create(
           TZDB2_HashString,
 {$IFDEF FPC}@{$ENDIF FPC}Do_Create_ZDB2_HashString,

@@ -1112,8 +1112,6 @@ SavePasAI_Raster := _SaveRaster;
 
 TDrawEngineInterface_FMX.DrawEngine_Interface := TDrawEngineInterface_FMX.Create;
 
-GlobalPreferredFramesPerSecond := 120;
-
 if IsDebug and (DebugHook > 0) and (CurrentPlatform in [epWin32, epWin64]) then
   begin
     GlobalUseDX := False;

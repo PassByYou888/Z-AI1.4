@@ -138,7 +138,7 @@ begin
   DisposeObject(rnd);
 end;
 
-procedure TMorphologyBinaryzation.FillValueFromPolygon(Polygon: TVec2List; InsideValue, OutsideValue: TBinaryzationValue);
+procedure TMorphologyBinaryzation.FillValueFromPolygon(Polygon: TV2L; InsideValue, OutsideValue: TBinaryzationValue);
 {$IFDEF Parallel}
 {$IFDEF FPC}
   procedure Nested_ParallelFor(Y: Integer);
@@ -454,12 +454,12 @@ begin
     end;
 end;
 
-function TMorphologyBinaryzation.ConvexHull(): TVec2List;
+function TMorphologyBinaryzation.ConvexHull(): TV2L;
 var
   i, j: Integer;
   found: Boolean;
 begin
-  Result := TVec2List.Create;
+  Result := TV2L.Create;
   for j := 0 to Height - 1 do
     begin
       found := False;

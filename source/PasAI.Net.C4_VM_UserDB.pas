@@ -15,6 +15,7 @@ uses
   PasAI.Geometry2D, PasAI.DFE, PasAI.Expression, PasAI.OpCode, PasAI.ListEngine,
   PasAI.Json, PasAI.HashList.Templet, PasAI.ZDB2, PasAI.ZDB2.Json, PasAI.Cipher,
   PasAI.Notify, PasAI.MemoryStream,
+  PasAI.FragmentBuffer, // solve for discontinuous space
   PasAI.Net, PasAI.Net.PhysicsIO, PasAI.Net.DoubleTunnelIO.NoAuth, PasAI.Net.C4, PasAI.Net.C4.VM;
 
 type
@@ -22,13 +23,13 @@ type
 
   TC40_UserDB_VM_Json_Hash_Pool = {$IFDEF FPC}specialize {$ENDIF FPC}TGeneric_String_Object_Hash<TZDB2_Json>;
 
-  TC40_UserDB_VM_Service_SendTunnel_NoAuth = class(TPeerClientUserDefineForSendTunnel_NoAuth)
+  TC40_UserDB_VM_Service_SendTunnel_NoAuth = class(TService_SendTunnel_UserDefine_NoAuth)
   public
     constructor Create(Owner_: TPeerIO); override;
     destructor Destroy; override;
   end;
 
-  TC40_UserDB_VM_Service_RecvTunnel_NoAuth = class(TPeerClientUserDefineForRecvTunnel_NoAuth)
+  TC40_UserDB_VM_Service_RecvTunnel_NoAuth = class(TService_RecvTunnel_UserDefine_NoAuth)
   public
     OpenUserIdentifier: TC40_UserDB_VM_Json_Hash_Pool;
     constructor Create(Owner_: TPeerIO); override;
@@ -1398,7 +1399,7 @@ end;
 
 constructor TC40_UserDB_VM_Service.Create(Param_: U_String);
 var
-  FS: TCore_FileStream;
+  FS: TCore_Stream;
   i, j: Integer;
   Json: TZDB2_Json;
   identifier_arry: TZJArry;
@@ -1442,9 +1443,21 @@ begin
   UserIdentifierHash.IgnoreCase := True;
 
   if EStrToBool(ParamList.GetDefaultValue('ForeverSave', 'True'), True) and umlFileExists(C40_UserDB_VM_FileName) then
-      FS := TCore_FileStream.Create(C40_UserDB_VM_FileName, fmOpenReadWrite)
+    begin
+{$IFDEF C4_Safe_Flush}
+      FS := TSafe_Flush_Stream.Create(C40_UserDB_VM_FileName, False, True);
+{$ELSE C4_Safe_Flush}
+      FS := TCore_FileStream.Create(C40_UserDB_VM_FileName, fmOpenReadWrite);
+{$ENDIF C4_Safe_Flush}
+    end
   else
+    begin
+{$IFDEF C4_Safe_Flush}
+      FS := TSafe_Flush_Stream.Create(C40_UserDB_VM_FileName, True, True);
+{$ELSE C4_Safe_Flush}
       FS := TCore_FileStream.Create(C40_UserDB_VM_FileName, fmCreate);
+{$ENDIF C4_Safe_Flush}
+    end;
 
   ZDB2RecycleMemoryTimeOut := EStrToInt64(ParamList.GetDefaultValue('RecycleMemory', '60*1000'), 60 * 1000);
   ZDB2DeltaSpace := EStrToInt64(ParamList.GetDefaultValue('DeltaSpace', '16*1024*1024'), 16 * 1024 * 1024);

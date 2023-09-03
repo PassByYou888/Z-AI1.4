@@ -60,7 +60,7 @@ begin
   viewIntf.ShowBackground := True;
   viewIntf.PictureViewerStyle := pvsDynamic;
 
-  fArry := umlGetFileListWithFullPath(TPath.GetLibraryPath);
+  fArry := umlGet_File_Full_Array(TPath.GetLibraryPath);
   for f in fArry do
     if umlMultipleMatch(['doc*.jpg', 'doc*.bmp', 'doc*.png'], umlGetFileName(f)) then
         viewIntf.InputPicture(NewPasAI_RasterFromFile(f), ' ‰»ÎÕº∆¨', True, False, True);

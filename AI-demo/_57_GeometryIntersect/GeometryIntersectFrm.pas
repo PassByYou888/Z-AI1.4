@@ -39,8 +39,8 @@ type
     ColorBuff: TGenericsList<TPolyDrawOption>;
 
     constructor Create(AOwner: TComponent); override;
-    procedure compute_LineInt(pt1, pt2: TVec2; poly: TDeflectionPolygon; output: TVec2List);
-    function ComputeIntersectVec: TVec2List;
+    procedure compute_LineInt(pt1, pt2: TVec2; poly: TDeflectionPolygon; output: TV2L);
+    function ComputeIntersectVec: TV2L;
     procedure RebuildGeoBuff;
   end;
 
@@ -56,7 +56,7 @@ procedure TGeometryIntersectForm.FormPaint(Sender: TObject; Canvas: TCanvas; con
 var
   d: TDrawEngine;
   i: Integer;
-  intersectVecList: TVec2List;
+  intersectVecList: TV2L;
 begin
   dIntf.SetSurface(Canvas, Self);
   d := DrawPool(Self, dIntf);
@@ -118,7 +118,7 @@ begin
   RebuildGeoBuff;
 end;
 
-procedure TGeometryIntersectForm.compute_LineInt(pt1, pt2: TVec2; poly: TDeflectionPolygon; output: TVec2List);
+procedure TGeometryIntersectForm.compute_LineInt(pt1, pt2: TVec2; poly: TDeflectionPolygon; output: TV2L);
 var
   i: Integer;
   dpt1, dpt2: TVec2;
@@ -148,7 +148,7 @@ begin
       output.Add(v);
 end;
 
-function TGeometryIntersectForm.ComputeIntersectVec: TVec2List;
+function TGeometryIntersectForm.ComputeIntersectVec: TV2L;
 var
   tmp: TGenericsList<TDeflectionPolygon>;
   poly: TDeflectionPolygon;
@@ -156,7 +156,7 @@ var
   pt1, pt2: TVec2;
 begin
   // 高速遍历GeoBuff所有几何型相交点范式
-  Result := TVec2List.Create;
+  Result := TV2L.Create;
   tmp := TGenericsList<TDeflectionPolygon>.Create;
 
   // 先创建一个链表容器
@@ -189,7 +189,7 @@ const
   edge = 50;
 var
   i, j: Integer;
-  vl: TVec2List;
+  vl: TV2L;
   v: TVec2;
   poly: TDeflectionPolygon;
   pdo: TPolyDrawOption;
@@ -202,7 +202,7 @@ begin
   // 构建随机几何形
   for j := 1 to 5 do
     begin
-      vl := TVec2List.Create;
+      vl := TV2L.Create;
       for i := 1 to 5 do
           vl.Add(umlRandomRange(edge, round(width) - edge), umlRandomRange(edge, round(height) - edge));
 
@@ -226,7 +226,7 @@ begin
   // 构建线条
   for j := 1 to 20 do
     begin
-      vl := TVec2List.Create;
+      vl := TV2L.Create;
       for i := 1 to 2 do
           vl.Add(umlRandomRange(edge, round(width) - edge), umlRandomRange(edge, round(height) - edge));
 

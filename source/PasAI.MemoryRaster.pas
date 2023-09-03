@@ -17,7 +17,8 @@ uses Types, Math, Variants, TypInfo,
 {$ENDIF FPC}
   PasAI.ListEngine, PasAI.HashList.Templet, PasAI.Line2D.Templet,
   PasAI.Agg.Basics, PasAI.Agg, PasAI.Agg.Color32,
-  PasAI.JLS.Codec, PasAI.MemoryRaster.JPEG.Type_LIB, PasAI.MemoryRaster.JPEG.Image_LIB;
+  PasAI.JLS.Codec, PasAI.MemoryRaster.JPEG.Type_LIB, PasAI.MemoryRaster.JPEG.Image_LIB,
+  PasAI.ZDB2;
 
 type
 {$REGION 'base define'}
@@ -193,14 +194,30 @@ type
 
 {$ENDREGION 'base define'}
 {$REGION 'MemoryRaster'}
+  TMemoryPasAI_RasterClass = class of TMPasAI_Raster;
+
+  TMR_Array = array of TMPasAI_Raster;
+  TPasAI_RasterArray = TMR_Array;
+  TMR_Matrix = array of TMR_Array;
+  TMR_2DArray = TMR_Matrix;
+  TMR_2D_Matrix = class;
+
+  TMR_Pool = {$IFDEF FPC}specialize {$ENDIF FPC} TBig_Object_List<TMPasAI_Raster>;
+  TMR_Critical_Pool = {$IFDEF FPC}specialize {$ENDIF FPC} TCritical_Big_Object_List<TMPasAI_Raster>;
+  TMR_CPool = TMR_Critical_Pool;
+
+  TSerialized_History_Pool = {$IFDEF FPC}specialize {$ENDIF FPC} TCritical_PasAI_Raster_BL<TMPasAI_Raster>;
 
   TMPasAI_Raster = class(TCore_Object)
   private
     FIsChanged: Boolean;
     FDrawEngineMap: TCore_Object;
 
+    FSerialized_Read_History_Ptr: TSerialized_History_Pool.PQueueStruct;
+    FSerialized_Write_History_Ptr: TSerialized_History_Pool.PQueueStruct;
     FSerialized_Engine: TPasAI_RasterSerialized;
-    FMemorySerializedPosition: Int64;
+    FSerialized_ID: Integer;
+    FSerialized_Size: Int64;
     FActivted: Boolean;
     FActiveTimeTick: TTimeTick;
 
@@ -311,11 +328,17 @@ type
     function ActiveTimeTick: TTimeTick;
 
     { serialized recycle memory }
+    property Serialized_Read_History_Ptr: TSerialized_History_Pool.PQueueStruct read FSerialized_Read_History_Ptr write FSerialized_Read_History_Ptr;
+    property Serialized_Write_History_Ptr: TSerialized_History_Pool.PQueueStruct read FSerialized_Write_History_Ptr write FSerialized_Write_History_Ptr;
     property Serialized_Engine: TPasAI_RasterSerialized read FSerialized_Engine;
+    property Serialized_Size: Int64 read FSerialized_Size;
     function SerializedAndRecycleMemory(RSeri: TPasAI_RasterSerialized): Int64; overload;
     function SerializedAndRecycleMemory(): Int64; overload;
     function UnserializedMemory(RSeri: TPasAI_RasterSerialized): Int64; overload;
     function UnserializedMemory(): Int64; overload;
+    function Is_Serialized(): Boolean;
+    function Get_Serialized_Size(RSeri: TPasAI_RasterSerialized): Int64; overload;
+    function Get_Serialized_Size(): Int64; overload;
     function RecycleMemory(): Int64;
     procedure ReadyBits;
     procedure ResetSerialized;
@@ -351,7 +374,8 @@ type
     procedure NoUsage; virtual;
     procedure Update;
     procedure DiscardMemory;
-    procedure SwapInstance(dest: TMPasAI_Raster);
+    procedure SwapInstance(dest: TMPasAI_Raster; Swap_Serialized_: Boolean); overload;
+    procedure SwapInstance(dest: TMPasAI_Raster); overload;
     function BitsSame(sour: TMPasAI_Raster): Boolean;
     procedure Reset; virtual;
     function Clone: TMPasAI_Raster; virtual;
@@ -364,6 +388,7 @@ type
     function MemorySize: Integer;
     function GetMD5: TMD5; virtual;
     function GetCRC32: Cardinal; virtual;
+    function Get_Gradient_L16_MD5: TMD5; virtual;
     procedure SetSize(NewWidth, NewHeight: Integer); overload; virtual;
     procedure SetSize(NewWidth, NewHeight: Integer; const ClearColor: TRColor); overload; virtual;
     procedure SetSizeF(NewWidth, NewHeight: TGeoFloat; const ClearColor: TRColor); overload;
@@ -470,7 +495,7 @@ type
     function FindNearColor(C: TRColor; PT: TVec2): TPoint;
     function ColorBoundsRectV2(C: TRColor): TRectV2;
     function ColorBoundsRect(C: TRColor): TRect;
-    function ConvexHull(C: TRColor): TVec2List;
+    function ConvexHull(C: TRColor): TV2L;
     function NoneColorBoundsRectV2(C: TRColor): TRectV2;
     function NoneColorBoundsRect(C: TRColor): TRect;
     procedure BlendColor(bk: TRColor);
@@ -497,8 +522,8 @@ type
     procedure DrawCross(Dstx, Dsty, LineDist: Integer; Color: TRColor); overload;
     procedure DrawCrossF(Dstx, Dsty, LineDist: TGeoFloat; Color: TRColor); overload;
     procedure DrawCrossF(Dst: TVec2; LineDist: TGeoFloat; Color: TRColor); overload;
-    procedure DrawCrossF(Polygon: TVec2List; LineDist: TGeoFloat; Color: TRColor); overload;
-    procedure DrawPointListLine(pl: TVec2List; Color: TRColor; wasClose: Boolean);
+    procedure DrawCrossF(Polygon: TV2L; LineDist: TGeoFloat; Color: TRColor); overload;
+    procedure DrawPointListLine(pl: TV2L; Color: TRColor; wasClose: Boolean);
     procedure DrawCircle(CC: TVec2; R: TGeoFloat; Color: TRColor);
     procedure FillCircle(CC: TVec2; R: TGeoFloat; Color: TRColor);
     procedure DrawEllipse(CC: TVec2; xRadius, yRadius: TGeoFloat; Color: TRColor); overload;
@@ -554,7 +579,7 @@ type
     procedure Projection(sour: TMPasAI_Raster; const sourRect, DestRect: TRectV2; const bilinear_sampling: Boolean; const alpha: TGeoFloat); overload;
 
     { Projection polygon sampler }
-    procedure ProjectionPolygonTo(const sour_Polygon: TVec2List; Dst: TMPasAI_Raster; DestRect: TRectV2; const bilinear_sampling: Boolean; const alpha: TGeoFloat); overload;
+    procedure ProjectionPolygonTo(const sour_Polygon: TV2L; Dst: TMPasAI_Raster; DestRect: TRectV2; const bilinear_sampling: Boolean; const alpha: TGeoFloat); overload;
     procedure ProjectionPolygonTo(const sour_Polygon: T2DPolygonGraph; Dst: TMPasAI_Raster; DestRect: TRectV2; const bilinear_sampling: Boolean; const alpha: TGeoFloat); overload;
 
     { blend draw }
@@ -691,18 +716,6 @@ type
     property Extra: THashStringList read GetExtra;
   end;
 
-  TMemoryPasAI_RasterClass = class of TMPasAI_Raster;
-
-  TMR_Array = array of TMPasAI_Raster;
-  TPasAI_RasterArray = TMR_Array;
-  TMR_Matrix = array of TMR_Array;
-  TMR_2DArray = TMR_Matrix;
-  TMR_2D_Matrix = class;
-
-  TMR_Pool = {$IFDEF FPC}specialize {$ENDIF FPC} TBig_Object_List<TMPasAI_Raster>;
-  TMR_Critical_Pool = {$IFDEF FPC}specialize {$ENDIF FPC} TCritical_Big_Object_List<TMPasAI_Raster>;
-  TMR_CPool = TMR_Critical_Pool;
-
   TMR_List___ = {$IFDEF FPC}specialize {$ENDIF FPC} TGenericsList<TMPasAI_Raster>;
 
   TMR_List = class(TMR_List___)
@@ -746,9 +759,9 @@ type
   private
     FCritical: TCritical;
   public
-    AutoFreePasAI_Raster: Boolean;
+    AutoFree_MR_List: Boolean;
     constructor Create; overload;
-    constructor Create(AutoFreePasAI_Raster_: Boolean); overload;
+    constructor Create(AutoFree_MR_List_: Boolean); overload;
     destructor Destroy; override;
     procedure Lock;
     procedure UnLock;
@@ -774,40 +787,59 @@ type
   end;
 
 {$ENDREGION 'MemoryRaster'}
-{$REGION 'Serialized'}
+{$REGION 'Serialized_ZDB2'}
 
-  TPasAI_Raster_Serialized_Pool = {$IFDEF FPC}specialize {$ENDIF FPC} TC_PasAI_Raster_BL<TPasAI_RasterSerialized>;
+  TRasterSerialized_Instance_Pool = {$IFDEF FPC}specialize {$ENDIF FPC} TCritical_PasAI_Raster_BL<TPasAI_RasterSerialized>;
+
+  TRasterSerialized_Pixel_Model = (rspmBGR, rspmBGRA);
 
   TPasAI_RasterSerialized = class
   protected
-    FInstance_Queue_Ptr: TPasAI_Raster_Serialized_Pool.PQueueStruct;
-    FStream: TCore_Stream;
-    FAutoFreeStream: Boolean;
+    FInstance_Queue_Ptr: TRasterSerialized_Instance_Pool.PQueueStruct;
+    FIOHnd: TIOHnd;
+    FZDB2: TZDB2_Core_Space;
+    FZDB2_Block: Word; // default $FFFF
+    FZDB2_Delta: Int64; // default 500 * 1024 * 1024
     FCritical: TCritical;
-    FWriteHistory, FReadHistory: TMR_List;
-    FEnabledWriteHistory, FEnabledReadHistory: Boolean;
+    FPixel_Model: TRasterSerialized_Pixel_Model; // default rspmBGRA;
+    FWrite_History_Pool, FRead_History_Pool: TSerialized_History_Pool;
+    FEnabled_Write_History, FEnabled_Read_History: Boolean; // default is false
+    FSerialized_File: U_String;
+    FRemove_Serialized_File_On_Destroy: Boolean; // default is False
+    procedure Do_NoSpace(Trigger: TZDB2_Core_Space; Siz_: Int64; var retry: Boolean);
+    function Get_AutoFreeStream: Boolean;
+    procedure Set_AutoFreeStream(const Value: Boolean);
   public
     constructor Create(stream_: TCore_Stream);
+    constructor Create_To_File(FileName_: U_String);
+    constructor Create_To_Directory(Directory_, File_Prefix_: U_String);
     destructor Destroy; override;
 
     function Write(R: TMPasAI_Raster): Int64;
     function Read(R: TMPasAI_Raster): Int64;
+    function Get_Raster_Size(R: TMPasAI_Raster): Int64;
     procedure Remove(R: TMPasAI_Raster);
-    procedure ClearHistory;
+    procedure Clear_History;
+    procedure Format_Space;
 
-    property AutoFreeStream: Boolean read FAutoFreeStream write FAutoFreeStream;
-    property stream: TCore_Stream read FStream;
+    property Pixel_Model: TRasterSerialized_Pixel_Model read FPixel_Model write FPixel_Model; // default rspmBGRA;
+    property ZDB2_Block: Word read FZDB2_Block write FZDB2_Block; // default $FFFF
+    property ZDB2_Delta: Int64 read FZDB2_Delta write FZDB2_Delta; // default 500 * 1024 * 1024
+    property AutoFreeStream: Boolean read Get_AutoFreeStream write Set_AutoFreeStream;
+    property Remove_Serialized_File_On_Destroy: Boolean read FRemove_Serialized_File_On_Destroy write FRemove_Serialized_File_On_Destroy; // default is False
     property Critical: TCritical read FCritical;
+    procedure Lock;
+    procedure UnLock;
     function StreamSize: Int64;
-    function StreamFile: U_String;
+    property StreamFile: U_String read FSerialized_File;
 
-    property WriteHistory: TMR_List read FWriteHistory;
-    property ReadHistory: TMR_List read FReadHistory;
-    property EnabledWriteHistory: Boolean read FEnabledWriteHistory write FEnabledWriteHistory;
-    property EnabledReadHistory: Boolean read FEnabledReadHistory write FEnabledReadHistory;
+    property Write_History_Pool: TSerialized_History_Pool read FWrite_History_Pool;
+    property Read_History_Pool: TSerialized_History_Pool read FRead_History_Pool;
+    property Enabled_Write_History: Boolean read FEnabled_Write_History write FEnabled_Write_History;
+    property Enabled_Read_History: Boolean read FEnabled_Read_History write FEnabled_Read_History;
   end;
 
-{$ENDREGION 'Serialized'}
+{$ENDREGION 'Serialized_ZDB2'}
 {$REGION 'TSequenceMemoryRaster'}
 
   TSequenceMemoryPasAI_Raster = class(TPasAI_Raster)
@@ -984,10 +1016,10 @@ type
       Sampler: MemoryRaster or Solid color
       bilinear_sampling: used Linear sampling
     *)
-    procedure FillPoly(const RenVec: TVec2List; const cen: TVec2; const Sampler: TRColor); overload;
-    procedure FillPoly(const RenVec: TVec2List; const Sampler: TRColor); overload;
-    procedure FillPoly(const SamVec, RenVec: TVec2List; const SamCen, RenCen: TVec2; const Sampler: TMPasAI_Raster; const bilinear_sampling: Boolean; const alpha: TGeoFloat); overload;
-    procedure FillPoly(const SamVec, RenVec: TVec2List; const Sampler: TMPasAI_Raster; const bilinear_sampling: Boolean; const alpha: TGeoFloat); overload;
+    procedure FillPoly(const RenVec: TV2L; const cen: TVec2; const Sampler: TRColor); overload;
+    procedure FillPoly(const RenVec: TV2L; const Sampler: TRColor); overload;
+    procedure FillPoly(const SamVec, RenVec: TV2L; const SamCen, RenCen: TVec2; const Sampler: TMPasAI_Raster; const bilinear_sampling: Boolean; const alpha: TGeoFloat); overload;
+    procedure FillPoly(const SamVec, RenVec: TV2L; const Sampler: TMPasAI_Raster; const bilinear_sampling: Boolean; const alpha: TGeoFloat); overload;
   end;
 
 {$ENDREGION 'Rasterization Vertex'}
@@ -1102,7 +1134,7 @@ type
 
     { draw font }
     function CharSize(const C: TFontPasAI_RasterChar): TPoint;
-    function TextSize(const S: TFontPasAI_RasterString; charVec2List: TVec2List): TVec2; overload;
+    function TextSize(const S: TFontPasAI_RasterString; charVec2List: TV2L): TVec2; overload;
     function TextSize(const S: TFontPasAI_RasterString): TVec2; overload;
     function TextWidth(const S: TFontPasAI_RasterString): Word;
     function TextHeight(const S: TFontPasAI_RasterString): Word;
@@ -1203,7 +1235,7 @@ type
     procedure SetSizeR(const R: TRectV2; const Value: TMorphomaticsValue); overload;
     procedure FillValue(Value: TMorphomaticsValue);
     procedure FillRandomValue();
-    procedure FillValueFromPolygon(Polygon: TVec2List; InsideValue, OutsideValue: TMorphomaticsValue);
+    procedure FillValueFromPolygon(Polygon: TV2L; InsideValue, OutsideValue: TMorphomaticsValue);
 
     function Clone: TMorphomatics;
     procedure Assign(sour: TMorphomatics);
@@ -1217,8 +1249,8 @@ type
     procedure DrawTo(dest: TMPasAI_Raster); overload;
     function BuildViewer(MorphPix_: TMorphologyPixel): TMPasAI_Raster; overload;
     function BuildViewer(): TMPasAI_Raster; overload;
-    procedure BuildViewerFile(MorphPix_: TMorphologyPixel; filename_: SystemString); overload;
-    procedure BuildViewerFile(filename_: SystemString); overload;
+    procedure BuildViewerFile(MorphPix_: TMorphologyPixel; FileName_: SystemString); overload;
+    procedure BuildViewerFile(FileName_: SystemString); overload;
     procedure GetHistogramData(var H: THistogramData);
     procedure BuildHistogramTo(Height_: Integer; hColor: TRColor; output_: TMPasAI_Raster);
     function BuildHistogram(Height_: Integer; hColor: TRColor): TMPasAI_Raster;
@@ -1407,7 +1439,7 @@ type
     procedure SetConvolutionSize(const Width_, Height_: Integer; const Value: TBinaryzationValue);
     procedure FillValue(Value: TBinaryzationValue);
     procedure FillRandomValue();
-    procedure FillValueFromPolygon(Polygon: TVec2List; InsideValue, OutsideValue: TBinaryzationValue);
+    procedure FillValueFromPolygon(Polygon: TV2L; InsideValue, OutsideValue: TBinaryzationValue);
     function ValueSum(Value: TBinaryzationValue): Integer;
     procedure DrawLine(const X1, Y1, X2, Y2: Integer; const PixelValue_: TBinaryzationValue; const L: Boolean);
     procedure FillBox(const X1, Y1, X2, Y2: Integer; const PixelValue_: TBinaryzationValue);
@@ -1436,9 +1468,9 @@ type
     procedure DrawTo(MorphPix_: TMorphologyPixel; raster: TMPasAI_Raster); overload;
     function BuildViewer(): TMPasAI_Raster; overload;
     function BuildViewer(MorphPix_: TMorphologyPixel): TMPasAI_Raster; overload;
-    procedure BuildViewerFile(filename_: SystemString); overload;
-    procedure BuildViewerFile(MorphPix_: TMorphologyPixel; filename_: SystemString); overload;
-    function ConvexHull(): TVec2List;
+    procedure BuildViewerFile(FileName_: SystemString); overload;
+    procedure BuildViewerFile(MorphPix_: TMorphologyPixel; FileName_: SystemString); overload;
+    function ConvexHull(): TV2L;
     function BoundsRectV2(const Value: TBinaryzationValue; var Sum_: Integer): TRectV2; overload;
     function BoundsRectV2(const Value: TBinaryzationValue): TRectV2; overload;
     function BoundsRect(const Value: TBinaryzationValue; var Sum_: Integer): TRect; overload;
@@ -1728,6 +1760,7 @@ type
 
 
 function Wait_SystemFont_Init: TFontPasAI_Raster;
+
 procedure Raster_Global_Parallel(parallel_: Boolean);
 
 function ClampInt(const Value, IMin, IMax: Integer): Integer;
@@ -2181,9 +2214,9 @@ var
   Bin3x3, Bin5x5, Bin7x7, Bin9x9, Bin11x11, Bin13x13, Bin15x15, Bin17x17, Bin19x19, Bin21x21, Bin23x23, Bin25x25, Bin51x51, Bin99x99: TMorphologyBinaryzation;
 
   {
-    Rastermization Serialized Pool
+    Rastermization Serialized instance Pool
   }
-  PasAI_Raster_Serialized_Pool: TPasAI_Raster_Serialized_Pool;
+  RasterSerialized_Instance_Pool: TRasterSerialized_Instance_Pool;
 
   {
     Color Table
@@ -2245,6 +2278,7 @@ type
     Width, Height: Integer;
     siz: Int64;
     UsedAGG: Boolean;
+    Pixel: TRasterSerialized_Pixel_Model;
   end;
 
   TAtomFontPasAI_Raster = {$IFDEF FPC}specialize {$ENDIF FPC}TAtomVar<TFontPasAI_Raster>;
@@ -2274,15 +2308,6 @@ function IsRectEmpty_(const R: TRect): Boolean; forward;
 {$I PasAI.MemoryRaster.MorphologyBinaryzation.inc}
 {$I PasAI.MemoryRaster.MorphologySegmentation.inc}
 {$I PasAI.MemoryRaster.MorphologyRCLines.inc}
-
-
-procedure Raster_Global_Parallel(parallel_: Boolean);
-begin
-  TMPasAI_Raster.Parallel := parallel_;
-  TPasAI_RasterVertex.Parallel := parallel_;
-  TMorphomatics.Parallel := parallel_;
-  TMorphologyBinaryzation.Parallel := parallel_;
-end;
 
 {$REGION 'Intf'}
 
@@ -2333,8 +2358,8 @@ TMPasAI_Raster.Parallel := {$IFDEF MemoryRaster_Parallel}True{$ELSE MemoryRaster
 TPasAI_RasterVertex.DebugTriangle := False;
 TPasAI_RasterVertex.DebugTriangleColor := RColor($FF, $7F, $7F, $7F);
 TPasAI_RasterVertex.Parallel := {$IFDEF Vertex_Parallel}True{$ELSE Vertex_Parallel}False{$ENDIF Vertex_Parallel};
-TPasAI_RasterVertex.ParallelHeightTrigger := 500;
-TPasAI_RasterVertex.ParallelWidthTrigger := 100;
+TPasAI_RasterVertex.ParallelHeightTrigger := 300;
+TPasAI_RasterVertex.ParallelWidthTrigger := 300;
 TMorphomatics.Parallel := {$IFDEF Morphomatics_Parallel}True{$ELSE Morphomatics_Parallel}False{$ENDIF Morphomatics_Parallel};
 TMorphologyBinaryzation.Parallel := {$IFDEF MorphologyBinaryzation_Parallel}True{$ELSE MorphologyBinaryzation_Parallel}False{$ENDIF MorphologyBinaryzation_Parallel};
 
@@ -2346,7 +2371,7 @@ SavePasAI_Raster := {$IFDEF FPC}@{$ENDIF FPC}SavePasAI_Raster_;
 MakeMergeTables;
 Init_DefaultFont;
 InitBinaryzationPreset;
-PasAI_Raster_Serialized_Pool := TPasAI_Raster_Serialized_Pool.Create;
+RasterSerialized_Instance_Pool := TRasterSerialized_Instance_Pool.Create;
 
 FillColorTable(3, 3, 2, $FF, @Color255);
 FillColorTable(6, 5, 5, $FFFF, @Color64K);
@@ -2357,7 +2382,7 @@ FBGB_color2 := RColor(38, 38, 38);
 
 finalization
 
-disposeObject(PasAI_Raster_Serialized_Pool);
+disposeObject(RasterSerialized_Instance_Pool);
 Free_DefaultFont;
 FreeBinaryzationPreset;
 

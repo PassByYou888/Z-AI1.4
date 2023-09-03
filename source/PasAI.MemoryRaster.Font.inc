@@ -777,7 +777,7 @@ begin
       if Status_ then
           DoStatus('build %s space...', [fontInfo_.Text]);
       RP.Margins := 4;
-      RP.Build(C_MAXWORD * 1024, C_MAXWORD * 1024);
+      RP.Build_Dynamic(C_MAXWORD * 1024, C_MAXWORD * 1024);
 
       FActivtedWord := 0;
       FWidth := Round(RP.MaxWidth);
@@ -1026,7 +1026,7 @@ begin
       Result := Point(w, h);
 end;
 
-function TFontPasAI_Raster.TextSize(const s: TFontPasAI_RasterString; charVec2List: TVec2List): TVec2;
+function TFontPasAI_Raster.TextSize(const s: TFontPasAI_RasterString; charVec2List: TV2L): TVec2;
 var
   I: Integer;
   c: TFontPasAI_RasterChar;
@@ -1103,11 +1103,11 @@ var
   r: TRect;
   vSiz: TVec2;
   wp: TDeflectionPolygon;
-  vl: TVec2List;
+  vl: TV2L;
   WI: Integer;
 begin
   // compute rotate: also matrix transform
-  vl := TVec2List.Create;
+  vl := TV2L.Create;
   vSiz := TextSize(Text, vl);
   wp := TDeflectionPolygon.Create;
   wp.Position := Vec2Mul(vSiz, Axis);
@@ -1165,11 +1165,11 @@ var
   r: TRect;
   vSiz: TVec2;
   wp: TDeflectionPolygon;
-  vl: TVec2List;
+  vl: TV2L;
   WI: Integer;
 begin
   // compute rotate: also matrix transform
-  vl := TVec2List.Create;
+  vl := TV2L.Create;
   vSiz := TextSize(Text, vl);
   wp := TDeflectionPolygon.Create;
   wp.Position := Vec2Mul(vSiz, Axis);
@@ -1281,7 +1281,7 @@ var
   s, d: TRectV2;
   vSiz: TVec2;
   wp: TDeflectionPolygon;
-  vl: TVec2List;
+  vl: TV2L;
   WI: Integer;
 begin
   // init raster
@@ -1299,7 +1299,7 @@ begin
   VM.UserData := @DD;
 
   // compute rotate: also matrix transform
-  vl := TVec2List.Create;
+  vl := TV2L.Create;
   vSiz := TextSize(Text, vl);
   wp := TDeflectionPolygon.Create;
   wp.Position := Vec2Mul(vSiz, Axis);
@@ -1641,11 +1641,11 @@ end;
 function TFontPasAI_Raster.ComputeTextConvexHull(Text: TFontPasAI_RasterString; X, Y: TGeoFloat; RotateVec: TVec2; Angle, siz: TGeoFloat): TArrayVec2;
 var
   DrawCoordinate, BoundBoxCoordinate: TArrayV2R4;
-  L: TVec2List;
+  L: TV2L;
   I: Integer;
 begin
   ComputeDrawCoordinate(Text, X, Y, RotateVec, Angle, siz, DrawCoordinate, BoundBoxCoordinate);
-  L := TVec2List.Create;
+  L := TV2L.Create;
   for I := 0 to Length(BoundBoxCoordinate) - 1 do
     if BoundBoxCoordinate[I].Area > 0 then
         L.Add(BoundBoxCoordinate[I]);

@@ -19,7 +19,7 @@ type
     procedure pb1Paint(Sender: TObject; Canvas: TCanvas);
   private
     drawIntf: TDrawEngineInterface_FMX;
-    samePolygon1, samePolygon2: TVec2List;
+    samePolygon1, samePolygon2: TV2L;
   public
   end;
 
@@ -35,8 +35,8 @@ procedure TPolygonScaleAndExtractMainForm.FormCreate(Sender: TObject);
 begin
   drawIntf := TDrawEngineInterface_FMX.Create;
 
-  samePolygon1 := TVec2List.Create;
-  samePolygon2 := TVec2List.Create;
+  samePolygon1 := TV2L.Create;
+  samePolygon2 := TV2L.Create;
 
   pb1Click(nil);
 end;
@@ -62,7 +62,7 @@ end;
 procedure TPolygonScaleAndExtractMainForm.pb2Paint(Sender: TObject; Canvas: TCanvas);
 var
   d: TDrawEngine;
-  np: TVec2List;
+  np: TV2L;
 begin
   drawIntf.SetSurface(Canvas, Sender);
   d := DrawPool(Sender, drawIntf);
@@ -71,7 +71,7 @@ begin
 
   d.DrawText('|s:16,color(0.5,0.5,1,1)|多边形等距放大会走形|color(0,1,0,1)| 点击鼠标重构|s:10|' + #13#10 + 'craete by.qq600585', 12, d.ScreenRect, DEColor(1, 1, 1, 1), False);
 
-  np := TVec2List.Create;
+  np := TV2L.Create;
   np.Assign(samePolygon2);
   d.DrawPL(False, np, True, DEColor(1, 1, 1, 1), 1);
 
@@ -88,7 +88,7 @@ procedure TPolygonScaleAndExtractMainForm.pb1Paint(Sender: TObject; Canvas: TCan
 var
   d: TDrawEngine;
   c1, c2: TVec2; // 重心轴
-  np: TVec2List;
+  np: TV2L;
 begin
   drawIntf.SetSurface(Canvas, Sender);
   d := DrawPool(Sender, drawIntf);
@@ -97,7 +97,7 @@ begin
 
   d.DrawText('|s:16,color(0.5,0.5,1,1)|乘法放大不会走形|color(0,1,0,1)| 点击鼠标重构|s:10|' + #13#10 + 'craete by.qq600585', 12, d.ScreenRect, DEColor(1, 1, 1, 1), False);
 
-  np := TVec2List.Create;
+  np := TV2L.Create;
   np.Assign(samePolygon1);
   c1 := np.Centroid;
   d.DrawPL(False, np, True, DEColor(1, 1, 1, 1), 1);

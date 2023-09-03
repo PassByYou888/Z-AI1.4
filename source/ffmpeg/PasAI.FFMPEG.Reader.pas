@@ -85,13 +85,17 @@ type
   private
     FVideoCodecCtx: PAVCodecContext;
     FVideoCodec: PAVCodec;
-    AVParser: PAVCodecParserContext;
-    AVPacket_ptr: PAVPacket;
-    Frame, FrameRGB: PAVFrame;
-    FrameRGB_buffer: PByte;
+    FAVParser: PAVCodecParserContext;
+    FAVPacket_ptr: PAVPacket;
+    FFrame, FFrameRGB: PAVFrame;
+    FFrameRGB_buffer: PByte;
     FSWS_CTX: PSwsContext;
-    SwapBuff: TMS64;
-    VideoRasterPool: TMR_List;
+    FSwapBuff: TMS64;
+    FSerialized_Tool: TPasAI_RasterSerialized;
+    FAuto_Write_Serialized: Boolean;
+    FVideoRasterPool: TMR_List;
+    procedure Set_Serialized_Tool(const Value: TPasAI_RasterSerialized);
+    procedure Set_Auto_Write_Serialized(const Value: Boolean);
   protected
     procedure DoWrite_Buffer_Before(var p: Pointer; var siz: NativeUInt); virtual;
     procedure DoVideo_Build_New_Raster(Raster: TMPasAI_Raster; var Save_To_Pool: Boolean); virtual;
@@ -107,6 +111,11 @@ type
 
     constructor Create;
     destructor Destroy; override;
+
+    // rasterization serialized.
+    property Serialized: TPasAI_RasterSerialized read FSerialized_Tool write Set_Serialized_Tool;
+    property Serialized_Tool: TPasAI_RasterSerialized read FSerialized_Tool write Set_Serialized_Tool;
+    property Auto_Write_Serialized: Boolean read FAuto_Write_Serialized write Set_Auto_Write_Serialized;
 
     class procedure PrintDecodec();
 
@@ -132,11 +141,11 @@ type
     procedure ClearVideoPool;
   end;
 
-  // pascal native Z.h264
+  // pascal native h264
 function ExtractVideoAsPasH264(VideoSource_: TPascalString; dest: TCore_Stream): integer; overload;
 function ExtractVideoAsPasH264(VideoSource_, DestH264: TPascalString): integer; overload;
 
-// hardware Z.h264
+// hardware h264
 function ExtractVideoAsH264(VideoSource_: TPascalString; dest: TCore_Stream; Bitrate: int64): integer; overload;
 function ExtractVideoAsH264(VideoSource_: TPascalString; DestH264: TPascalString; Bitrate: int64): integer; overload;
 
@@ -529,6 +538,8 @@ begin
     av_dict_set(@AV_Options, 'buffer_size', tmp, 0);
     TPascalString.FreePlatformPChar(tmp);
     av_dict_set(@AV_Options, 'stimeout', '6000000', 0);
+    av_dict_set(@AV_Options, 'max_delay', '50000000', 0);
+    av_dict_set(@AV_Options, 'thread_queue_size', '1024', 0);
     if RTSP_Used_TCP_ then
       begin
         av_dict_set(@AV_Options, 'rtsp_flags', '+prefer_tcp', 0);
@@ -537,8 +548,8 @@ begin
     else
       begin
         av_dict_set(@AV_Options, 'rtsp_transport', 'udp', 0);
-        av_dict_set(@AV_Options, 'min_port', '10000', 0);
-        av_dict_set(@AV_Options, 'max_port', '65000', 0);
+        av_dict_set(@AV_Options, 'min_port', '8000', 0);
+        av_dict_set(@AV_Options, 'max_port', '20000', 0);
       end;
 
     if (avformat_open_input(@FFormatCtx, PAnsiChar(p), nil, @AV_Options) <> 0) then
@@ -823,6 +834,20 @@ begin
   Result := Round(CurrentStream_PerSecond_Frame());
 end;
 
+procedure TFFMPEG_VideoStreamReader.Set_Serialized_Tool(const Value: TPasAI_RasterSerialized);
+begin
+  Critical.Lock;
+  FSerialized_Tool := Value;
+  Critical.UnLock;
+end;
+
+procedure TFFMPEG_VideoStreamReader.Set_Auto_Write_Serialized(const Value: Boolean);
+begin
+  Critical.Lock;
+  FAuto_Write_Serialized := Value;
+  Critical.UnLock;
+end;
+
 procedure TFFMPEG_VideoStreamReader.DoWrite_Buffer_Before(var p: Pointer; var siz: NativeUInt);
 begin
   if assigned(OnWrite_Buffer_Before) then
@@ -866,8 +891,8 @@ begin
   if FVideoCodec = nil then
       RaiseInfo('no found decoder', []);
 
-  AVParser := av_parser_init(Ord(FVideoCodec^.id));
-  if not assigned(AVParser) then
+  FAVParser := av_parser_init(Ord(FVideoCodec^.id));
+  if not assigned(FAVParser) then
       RaiseInfo('Parser not found');
 
   FVideoCodecCtx := avcodec_alloc_context3(FVideoCodec);
@@ -904,8 +929,8 @@ begin
   if avcodec_open2(FVideoCodecCtx, FVideoCodec, @AV_Options) < 0 then
       RaiseInfo('Could not open Codec.');
 
-  AVPacket_ptr := av_packet_alloc();
-  Frame := av_frame_alloc();
+  FAVPacket_ptr := av_packet_alloc();
+  FFrame := av_frame_alloc();
 end;
 
 constructor TFFMPEG_VideoStreamReader.Create;
@@ -913,15 +938,17 @@ begin
   inherited Create;
   FVideoCodecCtx := nil;
   FVideoCodec := nil;
-  AVParser := nil;
-  AVPacket_ptr := nil;
-  Frame := nil;
-  FrameRGB := nil;
-  FrameRGB_buffer := nil;
+  FAVParser := nil;
+  FAVPacket_ptr := nil;
+  FFrame := nil;
+  FFrameRGB := nil;
+  FFrameRGB_buffer := nil;
   FSWS_CTX := nil;
 
-  SwapBuff := TMS64.CustomCreate(128 * 1024);
-  VideoRasterPool := TMR_List.Create;
+  FSwapBuff := TMS64.CustomCreate(128 * 1024);
+  FSerialized_Tool := nil;
+  FAuto_Write_Serialized := False;
+  FVideoRasterPool := TMR_List.Create;
 
   Critical := TCritical.Create;
   Decoded_Memory_Size := 0;
@@ -933,10 +960,10 @@ end;
 destructor TFFMPEG_VideoStreamReader.Destroy;
 begin
   CloseCodec();
-  disposeObject(SwapBuff);
+  disposeObject(FSwapBuff);
 
   ClearVideoPool();
-  disposeObject(VideoRasterPool);
+  disposeObject(FVideoRasterPool);
   disposeObject(Critical);
   inherited Destroy;
 end;
@@ -1007,37 +1034,37 @@ end;
 procedure TFFMPEG_VideoStreamReader.CloseCodec;
 begin
   Critical.Lock;
-  if AVParser <> nil then
-      av_parser_close(AVParser);
+  if FAVParser <> nil then
+      av_parser_close(FAVParser);
 
   if FVideoCodecCtx <> nil then
       avcodec_free_context(@FVideoCodecCtx);
 
-  if Frame <> nil then
-      av_frame_free(@Frame);
+  if FFrame <> nil then
+      av_frame_free(@FFrame);
 
-  if AVPacket_ptr <> nil then
-      av_packet_free(@AVPacket_ptr);
+  if FAVPacket_ptr <> nil then
+      av_packet_free(@FAVPacket_ptr);
 
-  if FrameRGB_buffer <> nil then
-      av_free(FrameRGB_buffer);
+  if FFrameRGB_buffer <> nil then
+      av_free(FFrameRGB_buffer);
 
   if FSWS_CTX <> nil then
       sws_freeContext(FSWS_CTX);
 
-  if FrameRGB <> nil then
-      av_frame_free(@FrameRGB);
+  if FFrameRGB <> nil then
+      av_frame_free(@FFrameRGB);
 
   FVideoCodecCtx := nil;
   FVideoCodec := nil;
-  AVParser := nil;
-  AVPacket_ptr := nil;
-  Frame := nil;
-  FrameRGB := nil;
-  FrameRGB_buffer := nil;
+  FAVParser := nil;
+  FAVPacket_ptr := nil;
+  FFrame := nil;
+  FFrameRGB := nil;
+  FFrameRGB_buffer := nil;
   FSWS_CTX := nil;
 
-  SwapBuff.Clear;
+  FSwapBuff.Clear;
   Critical.UnLock;
 end;
 
@@ -1054,7 +1081,7 @@ var
   begin
     Result := False;
 
-    R := avcodec_send_packet(FVideoCodecCtx, AVPacket_ptr);
+    R := avcodec_send_packet(FVideoCodecCtx, FAVPacket_ptr);
     if R < 0 then
       begin
         RaiseInfo('Error sending a packet for decoding');
@@ -1063,7 +1090,7 @@ var
 
     while R >= 0 do
       begin
-        R := avcodec_receive_frame(FVideoCodecCtx, Frame);
+        R := avcodec_receive_frame(FVideoCodecCtx, FFrame);
         if (R = AVERROR_EAGAIN) or (R = AVERROR_EOF) then
             break;
 
@@ -1074,48 +1101,48 @@ var
           end;
 
         // check FFMPEG color conversion and scaling
-        if (FrameRGB = nil) or (FrameRGB^.Width <> Frame^.Width) or (FrameRGB^.Height <> Frame^.Height) then
+        if (FFrameRGB = nil) or (FFrameRGB^.Width <> FFrame^.Width) or (FFrameRGB^.Height <> FFrame^.Height) then
           begin
-            if FrameRGB <> nil then
-                av_frame_free(@FrameRGB);
-            if FrameRGB_buffer <> nil then
-                av_free(FrameRGB_buffer);
+            if FFrameRGB <> nil then
+                av_frame_free(@FFrameRGB);
+            if FFrameRGB_buffer <> nil then
+                av_free(FFrameRGB_buffer);
             if FSWS_CTX <> nil then
                 sws_freeContext(FSWS_CTX);
 
-            FrameRGB := av_frame_alloc();
-            numByte := avpicture_get_size(AV_PIX_FMT_BGRA, Frame^.Width, Frame^.Height);
-            FrameRGB_buffer := av_malloc(numByte * sizeof(Cardinal));
+            FFrameRGB := av_frame_alloc();
+            numByte := avpicture_get_size(AV_PIX_FMT_BGRA, FFrame^.Width, FFrame^.Height);
+            FFrameRGB_buffer := av_malloc(numByte * sizeof(Cardinal));
             FSWS_CTX := sws_getContext(
-            Frame^.Width,
-              Frame^.Height,
+            FFrame^.Width,
+              FFrame^.Height,
               FVideoCodecCtx^.pix_fmt,
-              Frame^.Width,
-              Frame^.Height,
+              FFrame^.Width,
+              FFrame^.Height,
               AV_PIX_FMT_BGRA,
               SWS_BILINEAR,
               nil,
               nil,
               nil);
-            avpicture_fill(PAVPicture(FrameRGB), FrameRGB_buffer, AV_PIX_FMT_BGRA, Frame^.Width, Frame^.Height);
-            FrameRGB^.Width := Frame^.Width;
-            FrameRGB^.Height := Frame^.Height;
+            avpicture_fill(PAVPicture(FFrameRGB), FFrameRGB_buffer, AV_PIX_FMT_BGRA, FFrame^.Width, FFrame^.Height);
+            FFrameRGB^.Width := FFrame^.Width;
+            FFrameRGB^.Height := FFrame^.Height;
           end;
 
         try
           sws_scale(
           FSWS_CTX,
-            @Frame^.data,
-            @Frame^.linesize,
+            @FFrame^.data,
+            @FFrame^.linesize,
             0,
-            Frame^.Height,
-            @FrameRGB^.data,
-            @FrameRGB^.linesize);
+            FFrame^.Height,
+            @FFrameRGB^.data,
+            @FFrameRGB^.linesize);
 
           // extract frame to Raster
           vr := NewPasAI_Raster();
-          vr.SetSize(FrameRGB^.Width, FrameRGB^.Height);
-          CopyRColor(FrameRGB^.data[0]^, vr.Bits^[0], FrameRGB^.Width * FrameRGB^.Height);
+          vr.SetSize(FFrameRGB^.Width, FFrameRGB^.Height);
+          CopyRColor(FFrameRGB^.data[0]^, vr.Bits^[0], FFrameRGB^.Width * FFrameRGB^.Height);
 
           Save_To_Pool := True;
           DoVideo_Build_New_Raster(vr, Save_To_Pool);
@@ -1123,11 +1150,15 @@ var
           AtomInc(Decoded_Memory_Size, vr.MemorySize);
 
           if Save_To_Pool then
-              VideoRasterPool.Add(vr);
+            begin
+              FVideoRasterPool.Add(vr);
+              if FAuto_Write_Serialized and (FSerialized_Tool <> nil) then
+                  vr.SerializedAndRecycleMemory(FSerialized_Tool);
+            end;
 
           inc(Decoded_Num);
         except
-            FrameRGB := nil;
+            FFrameRGB := nil;
         end;
       end;
 
@@ -1151,42 +1182,42 @@ begin
     np := p;
     nsiz := siz;
     DoWrite_Buffer_Before(np, nsiz);
-    SwapBuff.Position := SwapBuff.Size;
-    SwapBuff.WritePtr(np, nsiz);
+    FSwapBuff.Position := FSwapBuff.Size;
+    FSwapBuff.WritePtr(np, nsiz);
 
     bufPos := 0;
-    while SwapBuff.Size - bufPos > 0 do
+    while FSwapBuff.Size - bufPos > 0 do
       begin
-        R := av_parser_parse2(AVParser, FVideoCodecCtx, @AVPacket_ptr^.data, @AVPacket_ptr^.Size,
-          SwapBuff.PositionAsPtr(bufPos), SwapBuff.Size - bufPos, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+        R := av_parser_parse2(FAVParser, FVideoCodecCtx, @FAVPacket_ptr^.data, @FAVPacket_ptr^.Size,
+          FSwapBuff.PositionAsPtr(bufPos), FSwapBuff.Size - bufPos, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
 
         if R < 0 then
             RaiseInfo('Error while parsing');
 
         inc(bufPos, R);
 
-        if AVPacket_ptr^.Size <> 0 then
+        if FAVPacket_ptr^.Size <> 0 then
           if not decode() then
               break;
       end;
 
-    if SwapBuff.Size - bufPos > 0 then
+    if FSwapBuff.Size - bufPos > 0 then
       begin
-        nbuff := TMS64.CustomCreate(SwapBuff.Delta);
-        SwapBuff.Position := bufPos;
-        nbuff.CopyFrom(SwapBuff, SwapBuff.Size - bufPos);
-        SwapBuff.NewParam(nbuff);
+        nbuff := TMS64.CustomCreate(FSwapBuff.Delta);
+        FSwapBuff.Position := bufPos;
+        nbuff.CopyFrom(FSwapBuff, FSwapBuff.Size - bufPos);
+        FSwapBuff.NewParam(nbuff);
         nbuff.DiscardMemory;
         disposeObject(nbuff);
       end
     else
-        SwapBuff.Clear;
+        FSwapBuff.Clear;
   finally
       Critical.UnLock;
   end;
 
   Result := Decoded_Num;
-  av_packet_unref(AVPacket_ptr);
+  av_packet_unref(FAVPacket_ptr);
   DoWrite_Buffer_After(np, nsiz, Decoded_Num);
 end;
 
@@ -1225,14 +1256,14 @@ end;
 function TFFMPEG_VideoStreamReader.DecodedRasterNum: integer;
 begin
   Critical.Lock;
-  Result := VideoRasterPool.Count;
+  Result := FVideoRasterPool.Count;
   Critical.UnLock;
 end;
 
 function TFFMPEG_VideoStreamReader.LockVideoPool: TMR_List;
 begin
   Critical.Lock;
-  Result := VideoRasterPool;
+  Result := FVideoRasterPool;
 end;
 
 procedure TFFMPEG_VideoStreamReader.UnLockVideoPool(freeRaster_: Boolean);
@@ -1241,9 +1272,9 @@ var
 begin
   if freeRaster_ then
     begin
-      for i := 0 to VideoRasterPool.Count - 1 do
-          disposeObject(VideoRasterPool[i]);
-      VideoRasterPool.Clear;
+      for i := 0 to FVideoRasterPool.Count - 1 do
+          disposeObject(FVideoRasterPool[i]);
+      FVideoRasterPool.Clear;
     end;
   Critical.UnLock;
 end;
@@ -1263,9 +1294,9 @@ initialization
 
 // Buffer size used for online video(rtsp or rtmp), 720p 1080p 2K 4K 8K support
 {$IFDEF CPU64}
-FFMPEG_Reader_BufferSize := 16 * 1024 * 1024;
+FFMPEG_Reader_BufferSize := 8 * 1024 * 1024;
 {$ELSE CPU64}
-FFMPEG_Reader_BufferSize := 4 * 1024 * 1024;
+FFMPEG_Reader_BufferSize := 2 * 1024 * 1024;
 {$ENDIF CPU64}
 
 end.

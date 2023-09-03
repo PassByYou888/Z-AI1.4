@@ -58,11 +58,11 @@ begin
 end;
 
 class function TMorphologyRCLines.BuildIntersectSegment(map: TMorphologyBinaryzation; MinLineLength: Integer): TMorphologyRCLines;
-  function GetIntersect(B, E: Integer; Bp, Ep: TPoint; s: TMorphologyRCLineStyle; L: TMorphologyRCLines): TVec2List;
+  function GetIntersect(B, E: Integer; Bp, Ep: TPoint; s: TMorphologyRCLineStyle; L: TMorphologyRCLines): TV2L;
   var
     Line: TLineV2;
     i: Integer;
-    List: TVec2List;
+    List: TV2L;
 
     procedure DoComputeIntersect(p: PMorphologyRCLine);
     var
@@ -72,7 +72,7 @@ class function TMorphologyRCLines.BuildIntersectSegment(map: TMorphologyBinaryza
         if Intersect(Line, LineV2(p^.Bp, p^.Ep), iPt) then
           begin
             if List = nil then
-                List := TVec2List.Create;
+                List := TV2L.Create;
             List.Add(iPt);
           end;
     end;
@@ -89,7 +89,7 @@ var
   temp: TMorphologyRCLines;
   i, j, k, xEnd: Integer;
   p: PMorphologyRCLine;
-  L: TVec2List;
+  L: TV2L;
   pt1, pt2: TPoint;
 begin
   temp := TMorphologyRCLines.BuildLines(map, MinLineLength);

@@ -17,14 +17,14 @@ begin
       sum_ := 0;
       with Repeat_ do
         repeat
-          if queue^.Data^.Distance_ > max_^.Data^.Distance_ then
+          if queue^.data^.Distance_ > max_^.data^.Distance_ then
               max_ := queue;
-          if queue^.Data^.Distance_ < min_^.Data^.Distance_ then
+          if queue^.data^.Distance_ < min_^.data^.Distance_ then
               min_ := queue;
-          sum_ := sum_ + queue^.Data^.Distance_;
+          sum_ := sum_ + queue^.data^.Distance_;
         until not Next;
-      Max_Distance_Cache := max_^.Data^.Distance_;
-      Min_Distance_Cache := min_^.Data^.Distance_;
+      Max_Distance_Cache := max_^.data^.Distance_;
+      Min_Distance_Cache := min_^.data^.Distance_;
       Sum_Cache := sum_;
     end;
 end;
@@ -36,19 +36,20 @@ begin
   Min_Distance_Cache := 0;
   Sum_Cache := 0;
   Name := '';
+  Weight := 0;
 end;
 
-procedure TCandidate_Distance_Pool.DoFree(var Data: PCandidate_Distance_);
+procedure TCandidate_Distance_Pool.DoFree(var data: PCandidate_Distance_);
 begin
-  inherited DoFree(Data);
+  inherited DoFree(data);
   Max_Distance_Cache := 0;
   Min_Distance_Cache := 0;
   Sum_Cache := 0;
 end;
 
-procedure TCandidate_Distance_Pool.DoAdd(var Data: PCandidate_Distance_);
+procedure TCandidate_Distance_Pool.DoAdd(var data: PCandidate_Distance_);
 begin
-  inherited DoAdd(Data);
+  inherited DoAdd(data);
   Max_Distance_Cache := 0;
   Min_Distance_Cache := 0;
   Sum_Cache := 0;
@@ -83,6 +84,11 @@ begin
       Result := Distance_Sum / TLFloat(num);
 end;
 
+function TCandidate_Distance_Pool.Distance_Weight_Mean: TLFloat;
+begin
+  Result := Distance_Mean() * (1.0 - Weight);
+end;
+
 function TCandidate_Distance_Pool.Distance_Regression: TLFloat;
 begin
   if num > 2 then
@@ -93,22 +99,57 @@ end;
 
 function TCandidate_Distance_Hash_Pool.Do_Sort_(var Left, Right: TCandidate_Distance_Hash_Pool_Decl.PPair_Pool_Value__): Integer;
 begin
-  Result := CompareDouble(Left^.Data.Second.Distance_Mean, Right^.Data.Second.Distance_Mean);
+  Result := CompareDouble(
+    Left^.data.Second.Distance_Mean * (1.0 - Left^.data.Second.Weight),
+    Right^.data.Second.Distance_Mean * (1.0 - Right^.data.Second.Weight));
 end;
 
 function TCandidate_Distance_Hash_Pool.Do_Inv_Sort_(var Left, Right: TCandidate_Distance_Hash_Pool_Decl.PPair_Pool_Value__): Integer;
 begin
-  Result := CompareDouble(Right^.Data.Second.Distance_Mean, Left^.Data.Second.Distance_Mean);
+  Result := CompareDouble(
+    Right^.data.Second.Distance_Mean * (1.0 - Right^.data.Second.Weight),
+    Left^.data.Second.Distance_Mean * (1.0 - Left^.data.Second.Weight));
 end;
 
 function TCandidate_Distance_Hash_Pool.Do_Sort_Min_Distance_(var Left, Right: TCandidate_Distance_Hash_Pool_Decl.PPair_Pool_Value__): Integer;
 begin
-  Result := CompareDouble(Left^.Data.Second.Min_Distance, Right^.Data.Second.Min_Distance);
+  Result := CompareDouble(Left^.data.Second.Min_Distance, Right^.data.Second.Min_Distance);
 end;
 
 function TCandidate_Distance_Hash_Pool.Do_Sort_Max_Distance_(var Left, Right: TCandidate_Distance_Hash_Pool_Decl.PPair_Pool_Value__): Integer;
 begin
-  Result := CompareDouble(Right^.Data.Second.Max_Distance, Left^.Data.Second.Max_Distance);
+  Result := CompareDouble(Right^.data.Second.Max_Distance, Left^.data.Second.Max_Distance);
+end;
+
+constructor TCandidate_Distance_Hash_Pool.Create_New_Instance(pool_: TCandidate_Distance_Hash_Pool; free_pool_: Boolean);
+var
+  i: TLInt;
+begin
+  inherited Create($FFFF, nil);
+  // copy buffer
+  SetLength(Memory_Buffer, length(pool_.Buff));
+  SetLength(Buff, length(pool_.Buff));
+  for i := 0 to length(pool_.Buff) - 1 do
+    begin
+      Buff[i].Distance_ := pool_.Buff[i].Distance_;
+      Buff[i].Index_ := i;
+
+      if pool_.Buff[i].Memory_ <> nil then
+        begin
+          Memory_Buffer[i] := pool_.Buff[i].Memory_^;
+          Buff[i].Memory_ := @Memory_Buffer[i];
+        end
+      else
+        begin
+          Buff[i].Memory_ := nil;
+        end;
+    end;
+  // build Candidate Info
+  for i := 0 to length(Buff) - 1 do
+    if (Buff[i].Index_ >= 0) and (Buff[i].Memory_ <> nil) then
+        Add_Candidate_Distance_Info(@Buff[i]);
+  if free_pool_ then
+      DisposeObject(pool_);
 end;
 
 constructor TCandidate_Distance_Hash_Pool.Create(Buff_: TCandidate_Distance_Array; Filter_Min_, Filter_Max_: TLFloat);
@@ -116,6 +157,7 @@ var
   i: TLInt;
 begin
   inherited Create($FFFF, nil);
+  SetLength(Memory_Buffer, 0);
   // extract buff to buff
   SetLength(Buff, length(Buff_));
   for i := 0 to length(Buff_) - 1 do
@@ -153,16 +195,25 @@ begin
 end;
 
 destructor TCandidate_Distance_Hash_Pool.Destroy;
+var
+  i: Integer;
 begin
   Clear;
   SetLength(Buff, 0);
+  // free memory buffer
+  for i := low(Memory_Buffer) to high(Memory_Buffer) do
+    begin
+      Memory_Buffer[i].token := '';
+      Memory_Buffer[i].data := '';
+    end;
+  SetLength(Memory_Buffer, 0);
   inherited Destroy;
 end;
 
 procedure TCandidate_Distance_Hash_Pool.Add_Candidate_Distance_Info(p: PCandidate_Distance_);
 begin
   if not Exists_Key(p^.Memory_^.token) then
-      Add(p^.Memory_^.token, TCandidate_Distance_Pool.Create, False)^.Data.Second.Name := p^.Memory_^.token;
+      Add(p^.Memory_^.token, TCandidate_Distance_Pool.Create, False)^.data.Second.Name := p^.Memory_^.token;
   Key_Value[p^.Memory_^.token].Add(p);
 end;
 
@@ -174,7 +225,7 @@ begin
       exit;
   __repeat__ := Repeat_;
   repeat
-      output.Add(__repeat__.queue^.Data^.Data.Primary);
+      output.Add(__repeat__.queue^.data^.data.Primary);
   until not __repeat__.Next;
 end;
 
@@ -194,16 +245,16 @@ begin
     begin
       __r__ := source.Repeat_;
       repeat
-        if not Exists_Key(__r__.queue^.Data^.Data.Primary) then
-            Add(__r__.queue^.Data^.Data.Primary, TCandidate_Distance_Pool.Create, False)^.Data.Second.Name := __r__.queue^.Data^.Data.Primary;
+        if not Exists_Key(__r__.queue^.data^.data.Primary) then
+            Add(__r__.queue^.data^.data.Primary, TCandidate_Distance_Pool.Create, False)^.data.Second.Name := __r__.queue^.data^.data.Primary;
 
         // copy metric pool
-        __pool__ := Key_Value[__r__.queue^.Data^.Data.Primary];
-        if __r__.queue^.Data^.Data.Second.num > 0 then
+        __pool__ := Key_Value[__r__.queue^.data^.data.Primary];
+        if __r__.queue^.data^.data.Second.num > 0 then
           begin
-            __source_pool_repeat__ := __r__.queue^.Data^.Data.Second.Repeat_;
+            __source_pool_repeat__ := __r__.queue^.data^.data.Second.Repeat_;
             repeat
-                __pool__.Add(__source_pool_repeat__.queue^.Data);
+                __pool__.Add(__source_pool_repeat__.queue^.data);
             until not __source_pool_repeat__.Next;
           end;
 
@@ -223,12 +274,13 @@ begin
   Result := nil;
   if num <= 0 then
       exit;
+  Compute_Weight();
   __repeat__ := Repeat_;
   repeat
     if Result = nil then
-        Result := __repeat__.queue^.Data^.Data.Second
-    else if Result.Distance_Mean >= __repeat__.queue^.Data^.Data.Second.Distance_Mean then
-        Result := __repeat__.queue^.Data^.Data.Second;
+        Result := __repeat__.queue^.data^.data.Second
+    else if Result.Distance_Mean >= __repeat__.queue^.data^.data.Second.Distance_Mean then
+        Result := __repeat__.queue^.data^.data.Second;
   until not __repeat__.Next;
 end;
 
@@ -239,12 +291,13 @@ begin
   Result := nil;
   if num <= 0 then
       exit;
+  Compute_Weight();
   __repeat__ := Repeat_;
   repeat
     if Result = nil then
-        Result := __repeat__.queue^.Data^.Data.Second
-    else if Result.Distance_Mean <= __repeat__.queue^.Data^.Data.Second.Distance_Mean then
-        Result := __repeat__.queue^.Data^.Data.Second;
+        Result := __repeat__.queue^.data^.data.Second
+    else if Result.Distance_Mean <= __repeat__.queue^.data^.data.Second.Distance_Mean then
+        Result := __repeat__.queue^.data^.data.Second;
   until not __repeat__.Next;
 end;
 
@@ -255,12 +308,13 @@ begin
   Result := nil;
   if num <= 0 then
       exit;
+  Compute_Weight();
   __repeat__ := Repeat_;
   repeat
     if Result = nil then
-        Result := __repeat__.queue^.Data^.Data.Second
-    else if Result.Min_Distance >= __repeat__.queue^.Data^.Data.Second.Min_Distance then
-        Result := __repeat__.queue^.Data^.Data.Second;
+        Result := __repeat__.queue^.data^.data.Second
+    else if Result.Min_Distance >= __repeat__.queue^.data^.data.Second.Min_Distance then
+        Result := __repeat__.queue^.data^.data.Second;
   until not __repeat__.Next;
 end;
 
@@ -271,23 +325,44 @@ begin
   Result := nil;
   if num <= 0 then
       exit;
+  Compute_Weight();
   __repeat__ := Repeat_;
   repeat
     if Result = nil then
-        Result := __repeat__.queue^.Data^.Data.Second
-    else if Result.Max_Distance <= __repeat__.queue^.Data^.Data.Second.Max_Distance then
-        Result := __repeat__.queue^.Data^.Data.Second;
+        Result := __repeat__.queue^.data^.data.Second
+    else if Result.Max_Distance <= __repeat__.queue^.data^.data.Second.Max_Distance then
+        Result := __repeat__.queue^.data^.data.Second;
   until not __repeat__.Next;
+end;
+
+procedure TCandidate_Distance_Hash_Pool.Compute_Weight;
+var
+  total_: Int64;
+begin
+  if num <= 0 then
+      exit;
+  total_ := 0;
+  with Repeat_ do
+    repeat
+        inc(total_, queue^.data^.data.Second.num);
+    until not Next;
+
+  with Repeat_ do
+    repeat
+        queue^.data^.data.Second.Weight := queue^.data^.data.Second.num / total_;
+    until not Next;
 end;
 
 procedure TCandidate_Distance_Hash_Pool.Sort_Mean();
 begin
+  Compute_Weight();
   Queue_Pool.Sort_M({$IFDEF FPC}@{$ENDIF FPC}Do_Sort_);
   Extract_Queue_Pool_Third();
 end;
 
 procedure TCandidate_Distance_Hash_Pool.Inv_Sort_Mean();
 begin
+  Compute_Weight();
   Queue_Pool.Sort_M({$IFDEF FPC}@{$ENDIF FPC}Do_Inv_Sort_);
   Extract_Queue_Pool_Third();
 end;
@@ -304,7 +379,7 @@ begin
   Extract_Queue_Pool_Third();
 end;
 
-procedure TLearn.KDInput(const IndexFor: NativeInt; var source: TKDTree_Source; const Data: Pointer);
+procedure TLearn.KDInput(const IndexFor: NativeInt; var source: TKDTree_Source; const data: Pointer);
 var
   p: PLearnMemory;
   i: TLInt;
@@ -316,7 +391,7 @@ begin
   source.token := p^.token;
 end;
 
-procedure TLearn.TokenInput(const IndexFor: NativeInt; var source: TKDTree_Source; const Data: Pointer);
+procedure TLearn.TokenInput(const IndexFor: NativeInt; var source: TKDTree_Source; const data: Pointer);
 var
   p: PLearnMemory;
   i: TLInt;
@@ -799,7 +874,7 @@ begin
   Result := FMemorySource[index];
 end;
 
-function TLearn.AddMemory(const f_In, f_Out: TLVec; f_token: TPascalString): PLearnMemory;
+function TLearn.AddMemory(const f_In, f_Out: TLVec; f_token, f_data: TPascalString): PLearnMemory;
 var
   p: PLearnMemory;
   i: TLInt;
@@ -825,6 +900,7 @@ begin
   SetLength(p^.m_out, FOutSize);
   CopyPtr(@f_Out[0], @(p^.m_out[0]), FOutSize * SizeOf(TLFloat));
   p^.token := umlTrimSpace(f_token);
+  p^.data := f_data;
 
   FMemorySource.Add(p);
 
@@ -834,7 +910,12 @@ begin
   Result := p;
 end;
 
-function TLearn.AddMemory(const f_In: TLVec; f_token: TPascalString): PLearnMemory;
+function TLearn.AddMemory(const f_In, f_Out: TLVec; f_token: TPascalString): PLearnMemory;
+begin
+  Result := AddMemory(f_In, f_Out, f_token, '');
+end;
+
+function TLearn.AddMemory(const f_In: TLVec; f_token, f_data: TPascalString): PLearnMemory;
 var
   p: PLearnMemory;
   f_Out: TLVec;
@@ -842,30 +923,24 @@ begin
   p := FindTokenData(f_token);
   if p <> nil then
     begin
-      Result := AddMemory(f_In, p^.m_out, f_token);
+      Result := AddMemory(f_In, p^.m_out, f_token, f_data);
       exit;
     end;
 
   f_Out := LVec(FOutSize);
   LSetVec(f_Out, Count);
-  Result := AddMemory(f_In, f_Out, f_token);
+  Result := AddMemory(f_In, f_Out, f_token, f_data);
   SetLength(f_Out, 0);
+end;
+
+function TLearn.AddMemory(const f_In: TLVec; f_token: TPascalString): PLearnMemory;
+begin
+  Result := AddMemory(f_In, f_token, '');
 end;
 
 function TLearn.AddMemory(const f_In, f_Out: TLVec): PLearnMemory;
 begin
   Result := AddMemory(f_In, f_Out, LVec(f_Out));
-end;
-
-function TLearn.AddMemory(const s_In, s_Out, s_token: TPascalString): PLearnMemory;
-var
-  f_In, f_Out: TLVec;
-begin
-  f_In := LVec(s_In, FInSize);
-  f_Out := LVec(s_Out, FOutSize);
-  Result := AddMemory(f_In, f_Out, s_token);
-  SetLength(f_In, 0);
-  SetLength(f_Out, 0);
 end;
 
 function TLearn.AddMemory(const s_In, s_Out: TPascalString): PLearnMemory;
@@ -879,6 +954,17 @@ begin
       exit;
     end;
   Result := AddMemory(s_In, s_Out, s_Out);
+end;
+
+function TLearn.AddMemory(const s_In, s_Out, s_token: TPascalString): PLearnMemory;
+var
+  f_In, f_Out: TLVec;
+begin
+  f_In := LVec(s_In, FInSize);
+  f_Out := LVec(s_Out, FOutSize);
+  Result := AddMemory(f_In, f_Out, s_token);
+  SetLength(f_In, 0);
+  SetLength(f_Out, 0);
 end;
 
 function TLearn.AddMemory(const s: TPascalString): PLearnMemory;
@@ -2036,124 +2122,6 @@ begin
     end;
 end;
 
-procedure TLearn.SearchMemoryPearson(const ProcessIn: TLVec; out List: TLIVec);
-{$REGION 'Imp'}
-
-type
-  TState = record
-    K: TLFloat;
-    index: TLInt;
-  end;
-
-  PState = ^TState;
-
-  TStatePtrArray = array of PState;
-  TStateArray = array of TState;
-
-  function SortCompare(const p1, p2: PState): ShortInt; inline;
-  begin
-    if p1^.K < p2^.K then
-        Result := -1
-    else if p1^.K > p2^.K then
-        Result := 1
-    else if p1^.index = p2^.index then
-        Result := 0
-    else if p1^.index < p2^.index then
-        Result := -1
-    else
-        Result := 1;
-  end;
-  procedure InternalSort(var SortBuffer: TStatePtrArray; L, r: TLInt);
-  var
-    i, j: TLInt;
-    p, tmp: PState;
-  begin
-    if L < r then
-      begin
-        repeat
-          if (r - L) = 1 then
-            begin
-              if SortCompare(SortBuffer[L], SortBuffer[r]) > 0 then
-                begin
-                  tmp := SortBuffer[L];
-                  SortBuffer[L] := SortBuffer[r];
-                  SortBuffer[r] := tmp;
-                end;
-              break;
-            end;
-          i := L;
-          j := r;
-          p := SortBuffer[(L + r) shr 1];
-          repeat
-            while SortCompare(SortBuffer[i], p) < 0 do
-                inc(i);
-            while SortCompare(SortBuffer[j], p) > 0 do
-                dec(j);
-            if i <= j then
-              begin
-                if i <> j then
-                  begin
-                    tmp := SortBuffer[i];
-                    SortBuffer[i] := SortBuffer[j];
-                    SortBuffer[j] := tmp;
-                  end;
-                inc(i);
-                dec(j);
-              end;
-          until i > j;
-          if (j - L) > (r - i) then
-            begin
-              if i < r then
-                  InternalSort(SortBuffer, i, r);
-              r := j;
-            end
-          else
-            begin
-              if L < j then
-                  InternalSort(SortBuffer, L, j);
-              L := i;
-            end;
-        until L >= r;
-      end;
-  end;
-
-var
-  Buff: TStateArray;
-  buffPtr: TStatePtrArray;
-  i: TLInt;
-begin
-  if Count <= 0 then
-      exit;
-  if Count = 1 then
-    begin
-      SetLength(List, 1);
-      List[0] := 0;
-      exit;
-    end;
-  SetLength(Buff, Count);
-  SetLength(buffPtr, Count);
-
-  for i := 0 to Count - 1 do
-    begin
-      Buff[i].K := PearsonCorrelation(ProcessIn, FMemorySource[i]^.m_in, FInSize);
-      Buff[i].index := i;
-      buffPtr[i] := @Buff[i];
-    end;
-
-  // complete sort
-  InternalSort(buffPtr, 0, length(buffPtr) - 1);
-
-  // fill
-  SetLength(List, Count);
-  for i := 0 to Count - 1 do
-      List[i] := buffPtr[i]^.index;
-
-  SetLength(Buff, 0);
-  SetLength(buffPtr, 0);
-end;
-{$ENDREGION 'Imp'}
-
-
 function TLearn.SearchMemorySpearman(const ProcessIn: TLVec): TLInt;
 var
   K, r: TLFloat;
@@ -2178,124 +2146,6 @@ begin
         end;
     end;
 end;
-
-procedure TLearn.SearchMemorySpearman(const ProcessIn: TLVec; out List: TLIVec);
-{$REGION 'Imp'}
-
-type
-  TState = record
-    K: TLFloat;
-    index: TLInt;
-  end;
-
-  PState = ^TState;
-
-  TStatePtrArray = array of PState;
-  TStateArray = array of TState;
-
-  function SortCompare(const p1, p2: PState): ShortInt; inline;
-  begin
-    if p1^.K < p2^.K then
-        Result := -1
-    else if p1^.K > p2^.K then
-        Result := 1
-    else if p1^.index = p2^.index then
-        Result := 0
-    else if p1^.index < p2^.index then
-        Result := -1
-    else
-        Result := 1;
-  end;
-  procedure InternalSort(var SortBuffer: TStatePtrArray; L, r: TLInt);
-  var
-    i, j: TLInt;
-    p, tmp: PState;
-  begin
-    if L < r then
-      begin
-        repeat
-          if (r - L) = 1 then
-            begin
-              if SortCompare(SortBuffer[L], SortBuffer[r]) > 0 then
-                begin
-                  tmp := SortBuffer[L];
-                  SortBuffer[L] := SortBuffer[r];
-                  SortBuffer[r] := tmp;
-                end;
-              break;
-            end;
-          i := L;
-          j := r;
-          p := SortBuffer[(L + r) shr 1];
-          repeat
-            while SortCompare(SortBuffer[i], p) < 0 do
-                inc(i);
-            while SortCompare(SortBuffer[j], p) > 0 do
-                dec(j);
-            if i <= j then
-              begin
-                if i <> j then
-                  begin
-                    tmp := SortBuffer[i];
-                    SortBuffer[i] := SortBuffer[j];
-                    SortBuffer[j] := tmp;
-                  end;
-                inc(i);
-                dec(j);
-              end;
-          until i > j;
-          if (j - L) > (r - i) then
-            begin
-              if i < r then
-                  InternalSort(SortBuffer, i, r);
-              r := j;
-            end
-          else
-            begin
-              if L < j then
-                  InternalSort(SortBuffer, L, j);
-              L := i;
-            end;
-        until L >= r;
-      end;
-  end;
-
-var
-  Buff: TStateArray;
-  buffPtr: TStatePtrArray;
-  i: TLInt;
-begin
-  if Count <= 0 then
-      exit;
-  if Count = 1 then
-    begin
-      SetLength(List, 1);
-      List[0] := 0;
-      exit;
-    end;
-  SetLength(Buff, Count);
-  SetLength(buffPtr, Count);
-
-  for i := 0 to Count - 1 do
-    begin
-      Buff[i].K := SpearmanRankCorrelation(ProcessIn, FMemorySource[i]^.m_in, FInSize);
-      Buff[i].index := i;
-      buffPtr[i] := @Buff[i];
-    end;
-
-  // complete sort
-  InternalSort(buffPtr, 0, length(buffPtr) - 1);
-
-  // fill
-  SetLength(List, Count);
-  for i := 0 to Count - 1 do
-      List[i] := buffPtr[i]^.index;
-
-  SetLength(Buff, 0);
-  SetLength(buffPtr, 0);
-end;
-{$ENDREGION 'Imp'}
-
 
 function TLearn.SearchMemoryDistance(const ProcessIn: TLVec): TLInt;
 var
@@ -2834,8 +2684,7 @@ begin
           ar.Add(p^.m_in[j]);
       for j := 0 to FOutSize - 1 do
           ar.Add(p^.m_out[j]);
-
-      nd.WriteString(p^.token);
+      nd.WriteString(p^.token + #0 + p^.data)
     end;
   df.WriteDataFrameCompressed(nd);
   DisposeObject(nd);
@@ -2902,6 +2751,7 @@ end;
 procedure TLearn.LoadFromDF(df: TDFE);
 var
   ar: TDFArrayDouble;
+  n: TPascalString;
   nd: TDFE;
   i, j: TLInt;
   plm: PLearnMemory;
@@ -2929,7 +2779,9 @@ begin
       new(plm);
       SetLength(plm^.m_in, FInSize);
       SetLength(plm^.m_out, FOutSize);
-      plm^.token := nd.Reader.ReadString;
+      n := nd.Reader.ReadString;
+      plm^.token := umlGetFirstStr_Discontinuity(n, #0);
+      plm^.data := umlDeleteFirstStr_Discontinuity(n, #0);
       FMemorySource.Add(plm);
 
       j := 0;
@@ -3147,3 +2999,238 @@ begin
       DisposeObject(fs);
   end;
 end;
+
+procedure TLearn.SearchMemoryPearson(const ProcessIn: TLVec; out List: TLIVec);
+{$REGION 'Imp'}
+
+type
+  TState = record
+    K: TLFloat;
+    index: TLInt;
+  end;
+
+  PState = ^TState;
+
+  TStatePtrArray = array of PState;
+  TStateArray = array of TState;
+
+  function SortCompare(const p1, p2: PState): ShortInt; inline;
+  begin
+    if p1^.K < p2^.K then
+        Result := -1
+    else if p1^.K > p2^.K then
+        Result := 1
+    else if p1^.index = p2^.index then
+        Result := 0
+    else if p1^.index < p2^.index then
+        Result := -1
+    else
+        Result := 1;
+  end;
+  procedure InternalSort(var SortBuffer: TStatePtrArray; L, r: TLInt);
+  var
+    i, j: TLInt;
+    p, tmp: PState;
+  begin
+    if L < r then
+      begin
+        repeat
+          if (r - L) = 1 then
+            begin
+              if SortCompare(SortBuffer[L], SortBuffer[r]) > 0 then
+                begin
+                  tmp := SortBuffer[L];
+                  SortBuffer[L] := SortBuffer[r];
+                  SortBuffer[r] := tmp;
+                end;
+              break;
+            end;
+          i := L;
+          j := r;
+          p := SortBuffer[(L + r) shr 1];
+          repeat
+            while SortCompare(SortBuffer[i], p) < 0 do
+                inc(i);
+            while SortCompare(SortBuffer[j], p) > 0 do
+                dec(j);
+            if i <= j then
+              begin
+                if i <> j then
+                  begin
+                    tmp := SortBuffer[i];
+                    SortBuffer[i] := SortBuffer[j];
+                    SortBuffer[j] := tmp;
+                  end;
+                inc(i);
+                dec(j);
+              end;
+          until i > j;
+          if (j - L) > (r - i) then
+            begin
+              if i < r then
+                  InternalSort(SortBuffer, i, r);
+              r := j;
+            end
+          else
+            begin
+              if L < j then
+                  InternalSort(SortBuffer, L, j);
+              L := i;
+            end;
+        until L >= r;
+      end;
+  end;
+
+var
+  Buff: TStateArray;
+  buffPtr: TStatePtrArray;
+  i: TLInt;
+begin
+  if Count <= 0 then
+      exit;
+  if Count = 1 then
+    begin
+      SetLength(List, 1);
+      List[0] := 0;
+      exit;
+    end;
+  SetLength(Buff, Count);
+  SetLength(buffPtr, Count);
+
+  for i := 0 to Count - 1 do
+    begin
+      Buff[i].K := PearsonCorrelation(ProcessIn, FMemorySource[i]^.m_in, FInSize);
+      Buff[i].index := i;
+      buffPtr[i] := @Buff[i];
+    end;
+
+  // complete sort
+  InternalSort(buffPtr, 0, length(buffPtr) - 1);
+
+  // fill
+  SetLength(List, Count);
+  for i := 0 to Count - 1 do
+      List[i] := buffPtr[i]^.index;
+
+  SetLength(Buff, 0);
+  SetLength(buffPtr, 0);
+end;
+{$ENDREGION 'Imp'}
+
+
+procedure TLearn.SearchMemorySpearman(const ProcessIn: TLVec; out List: TLIVec);
+{$REGION 'Imp'}
+
+type
+  TState = record
+    K: TLFloat;
+    index: TLInt;
+  end;
+
+  PState = ^TState;
+
+  TStatePtrArray = array of PState;
+  TStateArray = array of TState;
+
+  function SortCompare(const p1, p2: PState): ShortInt; inline;
+  begin
+    if p1^.K < p2^.K then
+        Result := -1
+    else if p1^.K > p2^.K then
+        Result := 1
+    else if p1^.index = p2^.index then
+        Result := 0
+    else if p1^.index < p2^.index then
+        Result := -1
+    else
+        Result := 1;
+  end;
+  procedure InternalSort(var SortBuffer: TStatePtrArray; L, r: TLInt);
+  var
+    i, j: TLInt;
+    p, tmp: PState;
+  begin
+    if L < r then
+      begin
+        repeat
+          if (r - L) = 1 then
+            begin
+              if SortCompare(SortBuffer[L], SortBuffer[r]) > 0 then
+                begin
+                  tmp := SortBuffer[L];
+                  SortBuffer[L] := SortBuffer[r];
+                  SortBuffer[r] := tmp;
+                end;
+              break;
+            end;
+          i := L;
+          j := r;
+          p := SortBuffer[(L + r) shr 1];
+          repeat
+            while SortCompare(SortBuffer[i], p) < 0 do
+                inc(i);
+            while SortCompare(SortBuffer[j], p) > 0 do
+                dec(j);
+            if i <= j then
+              begin
+                if i <> j then
+                  begin
+                    tmp := SortBuffer[i];
+                    SortBuffer[i] := SortBuffer[j];
+                    SortBuffer[j] := tmp;
+                  end;
+                inc(i);
+                dec(j);
+              end;
+          until i > j;
+          if (j - L) > (r - i) then
+            begin
+              if i < r then
+                  InternalSort(SortBuffer, i, r);
+              r := j;
+            end
+          else
+            begin
+              if L < j then
+                  InternalSort(SortBuffer, L, j);
+              L := i;
+            end;
+        until L >= r;
+      end;
+  end;
+
+var
+  Buff: TStateArray;
+  buffPtr: TStatePtrArray;
+  i: TLInt;
+begin
+  if Count <= 0 then
+      exit;
+  if Count = 1 then
+    begin
+      SetLength(List, 1);
+      List[0] := 0;
+      exit;
+    end;
+  SetLength(Buff, Count);
+  SetLength(buffPtr, Count);
+
+  for i := 0 to Count - 1 do
+    begin
+      Buff[i].K := SpearmanRankCorrelation(ProcessIn, FMemorySource[i]^.m_in, FInSize);
+      Buff[i].index := i;
+      buffPtr[i] := @Buff[i];
+    end;
+
+  // complete sort
+  InternalSort(buffPtr, 0, length(buffPtr) - 1);
+
+  // fill
+  SetLength(List, Count);
+  for i := 0 to Count - 1 do
+      List[i] := buffPtr[i]^.index;
+
+  SetLength(Buff, 0);
+  SetLength(buffPtr, 0);
+end;
+{$ENDREGION 'Imp'}

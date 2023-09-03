@@ -179,6 +179,40 @@ begin
       Result[length(v) - 1 - i] := v[i];
 end;
 
+function LIVec(const s: TPascalString): TLIVec;
+var
+  t: TTextParsing;
+  SplitOutput: TP_ArrayString;
+  c, i, j: NativeInt;
+begin
+  t := TTextParsing.Create(s, tsText, nil);
+  c := t.SplitChar(1, ', ', '', SplitOutput);
+  if c > 0 then
+    begin
+      SetLength(Result, c);
+
+      j := 0;
+      for i := 0 to length(SplitOutput) - 1 do
+        if umlGetNumTextType(SplitOutput[i]) <> ntUnknow then
+          begin
+            Result[j] := umlStrToInt(SplitOutput[i]);
+            inc(j);
+          end;
+    end;
+  DisposeObject(t);
+end;
+
+function LIVec(const veclen: TLInt; const VDef: TLInt): TLIVec;
+begin
+  SetLength(Result, veclen);
+  LSetVec(Result, VDef);
+end;
+
+function LIVec(const veclen: TLInt): TLIVec;
+begin
+  SetLength(Result, veclen);
+end;
+
 function LVec(): TLVec;
 begin
   SetLength(Result, 0);
@@ -513,6 +547,34 @@ end;
 function LDistance(const v1, v2: TLVec): TLFloat;
 begin
   Result := TKDTree.Distance(v1, v2);
+end;
+
+function LMin_Distance(const v1, v2: TLVec): TLFloat;
+begin
+  Result := TKDTree.Distance(v1, v2);
+end;
+
+function LMin_Distance(const v: TLVec; const M: TLMatrix): TLFloat;
+var
+  i: TLInt;
+begin
+  Result := LMin_Distance(v, M[0]);
+  for i := 1 to length(M) - 1 do
+      Result := Min(Result, LMin_Distance(v, M[i]));
+end;
+
+function LMin_Distance(const M: TLMatrix; const v: TLVec): TLFloat;
+begin
+  Result := LMin_Distance(v, M);
+end;
+
+function LMin_Distance(const M1, M2: TLMatrix): TLFloat;
+var
+  i: TLInt;
+begin
+  Result := LMin_Distance(M1[0], M2);
+  for i := 1 to length(M1) - 1 do
+      Result := Min(Result, LMin_Distance(M1[i], M2));
 end;
 
 function LHamming(const v1, v2: TLVec): TLInt;
